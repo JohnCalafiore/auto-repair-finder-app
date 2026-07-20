@@ -27,6 +27,35 @@ export type BbbGrade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-'
 
 export type Certification = 'ASE Certified' | 'AAA Approved' | 'BBB Accredited' | 'I-CAR Gold' | 'NAPA AutoCare'
 
+export type VehicleMake =
+  | 'Toyota'
+  | 'Lexus'
+  | 'Honda'
+  | 'Nissan'
+  | 'Subaru'
+  | 'Mazda'
+  | 'BMW'
+  | 'Mercedes-Benz'
+  | 'Audi'
+  | 'Volkswagen'
+  | 'Porsche'
+  | 'Volvo'
+  | 'Ford'
+  | 'Chevrolet'
+  | 'Dodge'
+  | 'Jeep'
+  | 'Hyundai'
+  | 'Kia'
+  | 'Tesla'
+
+export const MAKE_GROUPS: { group: string; makes: VehicleMake[] }[] = [
+  { group: 'Japanese', makes: ['Toyota', 'Lexus', 'Honda', 'Nissan', 'Subaru', 'Mazda'] },
+  { group: 'German / European', makes: ['BMW', 'Mercedes-Benz', 'Audi', 'Volkswagen', 'Porsche', 'Volvo'] },
+  { group: 'American', makes: ['Ford', 'Chevrolet', 'Dodge', 'Jeep'] },
+  { group: 'Korean', makes: ['Hyundai', 'Kia'] },
+  { group: 'Electric', makes: ['Tesla'] },
+]
+
 export interface ReviewSource {
   source: 'Google' | 'Yelp' | 'Carfax'
   rating: number // 0–5
@@ -67,6 +96,8 @@ export interface Shop {
   lng: number
   hours: WeekHours
   priceLevel: 1 | 2 | 3 // $ to $$$
+  /** Makes this shop specializes in. Empty/undefined = services all makes. */
+  specialties?: VehicleMake[]
   signals: TrustSignals
   blurb: string
 }

@@ -7,8 +7,10 @@ Find auto repair shops on a map and judge them by more than star ratings. Every 
 - **Interactive map** (Leaflet + OpenStreetMap — no API key required) with score-colored pins, synced to the results list
 - **Service-type filters**: General Repair, Body Shop, Speed & Performance, Oil Change & Lube, Tires & Wheels, Transmission, Brakes & Suspension, Exhaust & Muffler, Auto Electrical, Inspection & Emissions
 - **Trust filters**: minimum trust score, distance radius, open now, BBB-accredited only, certifications (ASE, AAA, I-CAR Gold, NAPA AutoCare)
+- **Vehicle make filter** (Toyota, Honda, BMW, Mercedes-Benz, and more, grouped by region): specialists in the chosen make rank first, all-make generalists stay included, and shops with other specialties are excluded
 - **Search** across names, addresses, and specialties; sort by trust, distance, or review volume
-- **"Use my location"** geolocation with distance calculation to every shop
+- **"Use my location"** geolocation that recenters the map and refreshes results around you immediately, with clear feedback when location access is blocked
+- **"Search this area"** button that appears when you pan or zoom away from the last searched area
 - **Shop detail panel** with a dashboard-style trust gauge, full score breakdown, per-platform ratings, BBB grade, hours, and contact info
 
 ## The Trust Score

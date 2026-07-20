@@ -41,6 +41,11 @@ export function ShopList({
               <div className="shop-card-meta">
                 {s.shop.categories.map((c) => CATEGORY_LABELS[c]).join(' · ')}
               </div>
+              {s.shop.specialties && s.shop.specialties.length > 0 && (
+                <div className="shop-card-meta specialty-line">
+                  Specializes in {s.shop.specialties.join(' · ')}
+                </div>
+              )}
               <div className="shop-card-meta shop-card-sub">
                 <span className={s.openNow ? 'open-now' : 'closed-now'}>
                   {s.openNow ? 'Open' : 'Closed'}

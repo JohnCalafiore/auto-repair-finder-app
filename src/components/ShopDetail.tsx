@@ -15,6 +15,9 @@ export function ShopDetail({ scored, onClose }: { scored: ScoredShop; onClose: (
         <div>
           <h2 className="detail-name">{shop.name}</h2>
           <p className="detail-cats">{shop.categories.map((c) => CATEGORY_LABELS[c]).join(' · ')}</p>
+          {shop.specialties && shop.specialties.length > 0 && (
+            <p className="detail-cats specialty-line">Specializes in {shop.specialties.join(' · ')}</p>
+          )}
           <p className="detail-sub">
             <span className={openNow ? 'open-now' : 'closed-now'}>{openNow ? 'Open now' : 'Closed'}</span>
             {' · '}

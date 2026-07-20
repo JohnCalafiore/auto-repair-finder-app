@@ -1,5 +1,6 @@
 import type { Shop } from '../types'
 import { SHOPS } from './shops'
+import { distanceMiles } from '../lib/geo'
 
 /**
  * Data adapter layer.
@@ -25,8 +26,8 @@ export interface ShopDataAdapter {
 }
 
 export class LocalSeedAdapter implements ShopDataAdapter {
-  async fetchShops(): Promise<Shop[]> {
-    return SHOPS
+  async fetchShops(center: { lat: number; lng: number }, radiusMiles: number): Promise<Shop[]> {
+    return SHOPS.filter((s) => distanceMiles(center, { lat: s.lat, lng: s.lng }) <= radiusMiles)
   }
 }
 

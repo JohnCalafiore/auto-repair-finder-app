@@ -52,6 +52,7 @@ export const SHOPS: Shop[] = [
     lng: -75.1798,
     hours: weekday('09:00', '19:00', ['09:00', '17:00']),
     priceLevel: 3,
+    specialties: ['Subaru', 'BMW', 'Porsche'],
     blurb: 'Performance tuning, dyno runs, and custom exhaust fabrication. The go-to shop for track-day builds.',
     signals: {
       reviews: [
@@ -201,6 +202,7 @@ export const SHOPS: Shop[] = [
     lng: -75.1289,
     hours: weekday('08:00', '18:00', ['09:00', '15:00']),
     priceLevel: 2,
+    specialties: ['BMW', 'Audi', 'Volkswagen', 'Volvo', 'Mercedes-Benz'],
     blurb: 'European import specialists (BMW, Audi, VW, Volvo) with dealer-level diagnostics at independent prices.',
     signals: {
       reviews: [
@@ -251,6 +253,7 @@ export const SHOPS: Shop[] = [
     lng: -75.0894,
     hours: weekday('10:00', '20:00', ['10:00', '18:00']),
     priceLevel: 3,
+    specialties: ['Ford', 'Chevrolet', 'Dodge'],
     blurb: 'ECU tuning, forced-induction installs, and drag prep. Newer shop with a fast-growing following.',
     signals: {
       reviews: [
@@ -401,6 +404,7 @@ export const SHOPS: Shop[] = [
     lng: -75.2077,
     hours: weekday('07:30', '17:30', ['08:00', '14:00']),
     priceLevel: 3,
+    specialties: ['Mercedes-Benz', 'BMW', 'Lexus'],
     blurb: 'White-glove service department feel without the dealership. Loaner cars and detailed digital inspections.',
     signals: {
       reviews: [
@@ -475,6 +479,7 @@ export const SHOPS: Shop[] = [
     lng: -75.2213,
     hours: weekday('08:30', '17:30', ['09:00', '13:00']),
     priceLevel: 2,
+    specialties: ['Tesla', 'Toyota', 'Honda'],
     blurb: 'Wiring gremlins, hybrid/EV systems, and check-engine mysteries other shops give up on.',
     signals: {
       reviews: [
@@ -537,6 +542,33 @@ export const SHOPS: Shop[] = [
       complaintResolutionRate: 0.67,
       yearEstablished: 2003,
       certifications: ['I-CAR Gold', 'BBB Accredited'],
+    },
+  },
+  {
+    id: 'rising-sun-auto-works',
+    name: 'Rising Sun Auto Works',
+    categories: ['general', 'brakes', 'electrical'],
+    address: '1100 Washington Ave, Philadelphia, PA 19147',
+    phone: '(215) 555-0107',
+    website: 'https://risingsunauto.example.com',
+    lat: 39.9366,
+    lng: -75.1622,
+    hours: weekday('08:00', '18:00', ['09:00', '15:00']),
+    priceLevel: 2,
+    specialties: ['Toyota', 'Lexus', 'Honda', 'Subaru', 'Mazda'],
+    blurb: 'Japanese-make specialists with factory scan tools. OEM parts by default, timing and hybrid work in-house.',
+    signals: {
+      reviews: [
+        { source: 'Google', rating: 4.9, count: 486 },
+        { source: 'Yelp', rating: 4.7, count: 174 },
+        { source: 'Carfax', rating: 4.8, count: 66 },
+      ],
+      bbbGrade: 'A+',
+      bbbAccredited: true,
+      complaints3y: 1,
+      complaintResolutionRate: 1,
+      yearEstablished: 2002,
+      certifications: ['ASE Certified', 'AAA Approved', 'BBB Accredited'],
     },
   },
   {

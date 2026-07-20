@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Shop, TrustScore } from './types'
 import { dataAdapter } from './data/adapters'
 import { computeTrustScore } from './lib/trustScore'
@@ -16,19 +16,42 @@ export interface ScoredShop {
 }
 
 const PHILLY: LatLng = { lat: 39.9526, lng: -75.1652 }
+const SEARCH_RADIUS_MILES = 30
 
 export default function App() {
   const [shops, setShops] = useState<Shop[]>([])
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [searchCenter, setSearchCenter] = useState<LatLng>(PHILLY)
   const [userLocation, setUserLocation] = useState<LatLng | null>(null)
   const [locating, setLocating] = useState(false)
+  const [locError, setLocError] = useState<string | null>(null)
+  const sidebarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    dataAdapter.fetchShops(PHILLY, 25).then(setShops)
-  }, [])
+    let cancelled = false
+    dataAdapter.fetchShops(searchCenter, SEARCH_RADIUS_MILES).then((s) => {
+      if (!cancelled) setShops(s)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [searchCenter])
 
-  const origin = userLocation ?? PHILLY
+  // New search area → bring the refreshed results into view
+  useEffect(() => {
+    sidebarRef.current?.scrollTo({ top: 0 })
+  }, [searchCenter])
+
+  useEffect(() => {
+    if (!locError) return
+    const t = setTimeout(() => setLocError(null), 6000)
+    return () => clearTimeout(t)
+  }, [locError])
+
+  // Distances are measured from the user when we know where they are,
+  // otherwise from the area currently being searched.
+  const origin = userLocation ?? searchCenter
 
   const scored = useMemo<ScoredShop[]>(
     () =>
@@ -43,7 +66,8 @@ export default function App() {
 
   const visible = useMemo(() => {
     const q = filters.query.trim().toLowerCase()
-    const out = scored.filter((s) => {
+    const make = filters.make
+    let out = scored.filter((s) => {
       if (q && !`${s.shop.name} ${s.shop.address} ${s.shop.blurb}`.toLowerCase().includes(q)) return false
       if (filters.categories.size > 0 && !s.shop.categories.some((c) => filters.categories.has(c))) return false
       if (s.trust.composite < filters.minTrust) return false
@@ -55,6 +79,11 @@ export default function App() {
         ![...filters.certifications].every((c) => s.shop.signals.certifications.includes(c))
       )
         return false
+      // Make filter: specialists in the make match, and so do all-make generalists
+      if (make) {
+        const sp = s.shop.specialties
+        if (sp && sp.length > 0 && !sp.includes(make)) return false
+      }
       return true
     })
     out.sort((a, b) => {
@@ -69,20 +98,38 @@ export default function App() {
           return b.trust.composite - a.trust.composite
       }
     })
+    if (make) {
+      // Shops that explicitly specialize in the chosen make rank above generalists
+      const isSpecialist = (s: ScoredShop) => !!s.shop.specialties?.includes(make)
+      out = [...out.filter(isSpecialist), ...out.filter((s) => !isSpecialist(s))]
+    }
     return out
   }, [scored, filters])
 
   const selected = visible.find((s) => s.shop.id === selectedId) ?? null
 
   const locateMe = () => {
-    if (!navigator.geolocation) return
+    if (!navigator.geolocation) {
+      setLocError('This browser does not support location access.')
+      return
+    }
     setLocating(true)
+    setLocError(null)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLocation(loc)
+        setSearchCenter(loc) // refresh results around the user right away
         setLocating(false)
       },
-      () => setLocating(false),
+      (err) => {
+        setLocating(false)
+        setLocError(
+          err.code === err.PERMISSION_DENIED
+            ? 'Location access was blocked. Allow location for this site in your browser settings, then try again.'
+            : 'Could not determine your location. Try again in a moment.',
+        )
+      },
       { timeout: 8000 },
     )
   }
@@ -110,8 +157,14 @@ export default function App() {
         </div>
       </header>
 
+      {locError && (
+        <div className="loc-toast" role="alert">
+          {locError}
+        </div>
+      )}
+
       <div className="app-body">
-        <div className="sidebar">
+        <div className="sidebar" ref={sidebarRef}>
           <FilterPanel filters={filters} onChange={setFilters} resultCount={visible.length} />
           <ShopList shops={visible} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
@@ -121,7 +174,8 @@ export default function App() {
             shops={visible}
             selectedId={selectedId}
             onSelect={setSelectedId}
-            center={PHILLY}
+            searchCenter={searchCenter}
+            onSearchArea={setSearchCenter}
             userLocation={userLocation}
           />
           {selected && <ShopDetail scored={selected} onClose={() => setSelectedId(null)} />}
