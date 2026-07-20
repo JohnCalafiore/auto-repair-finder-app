@@ -52,7 +52,7 @@ export const SHOPS: Shop[] = [
     lng: -75.1798,
     hours: weekday('09:00', '19:00', ['09:00', '17:00']),
     priceLevel: 3,
-    specialties: ['Subaru', 'BMW', 'Porsche'],
+    specialties: ['subaru', 'bmw', 'audi-vw'],
     blurb: 'Performance tuning, dyno runs, and custom exhaust fabrication. The go-to shop for track-day builds.',
     signals: {
       reviews: [
@@ -202,7 +202,7 @@ export const SHOPS: Shop[] = [
     lng: -75.1289,
     hours: weekday('08:00', '18:00', ['09:00', '15:00']),
     priceLevel: 2,
-    specialties: ['BMW', 'Audi', 'Volkswagen', 'Volvo', 'Mercedes-Benz'],
+    specialties: ['bmw', 'audi-vw', 'volvo', 'mercedes'],
     blurb: 'European import specialists (BMW, Audi, VW, Volvo) with dealer-level diagnostics at independent prices.',
     signals: {
       reviews: [
@@ -253,7 +253,7 @@ export const SHOPS: Shop[] = [
     lng: -75.0894,
     hours: weekday('10:00', '20:00', ['10:00', '18:00']),
     priceLevel: 3,
-    specialties: ['Ford', 'Chevrolet', 'Dodge'],
+    specialties: ['ford', 'gm', 'mopar'],
     blurb: 'ECU tuning, forced-induction installs, and drag prep. Newer shop with a fast-growing following.',
     signals: {
       reviews: [
@@ -404,7 +404,7 @@ export const SHOPS: Shop[] = [
     lng: -75.2077,
     hours: weekday('07:30', '17:30', ['08:00', '14:00']),
     priceLevel: 3,
-    specialties: ['Mercedes-Benz', 'BMW', 'Lexus'],
+    specialties: ['mercedes', 'bmw', 'toyota'],
     blurb: 'White-glove service department feel without the dealership. Loaner cars and detailed digital inspections.',
     signals: {
       reviews: [
@@ -479,7 +479,7 @@ export const SHOPS: Shop[] = [
     lng: -75.2213,
     hours: weekday('08:30', '17:30', ['09:00', '13:00']),
     priceLevel: 2,
-    specialties: ['Tesla', 'Toyota', 'Honda'],
+    specialties: ['tesla', 'toyota', 'honda'],
     blurb: 'Wiring gremlins, hybrid/EV systems, and check-engine mysteries other shops give up on.',
     signals: {
       reviews: [
@@ -555,7 +555,7 @@ export const SHOPS: Shop[] = [
     lng: -75.1622,
     hours: weekday('08:00', '18:00', ['09:00', '15:00']),
     priceLevel: 2,
-    specialties: ['Toyota', 'Lexus', 'Honda', 'Subaru', 'Mazda'],
+    specialties: ['toyota', 'honda', 'subaru', 'mazda'],
     blurb: 'Japanese-make specialists with factory scan tools. OEM parts by default, timing and hybrid work in-house.',
     signals: {
       reviews: [

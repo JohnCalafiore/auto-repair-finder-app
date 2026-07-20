@@ -27,33 +27,46 @@ export type BbbGrade = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-'
 
 export type Certification = 'ASE Certified' | 'AAA Approved' | 'BBB Accredited' | 'I-CAR Gold' | 'NAPA AutoCare'
 
+/** Make families grouped by corporate sibling brands to keep the filter compact. */
 export type VehicleMake =
-  | 'Toyota'
-  | 'Lexus'
-  | 'Honda'
-  | 'Nissan'
-  | 'Subaru'
-  | 'Mazda'
-  | 'BMW'
-  | 'Mercedes-Benz'
-  | 'Audi'
-  | 'Volkswagen'
-  | 'Porsche'
-  | 'Volvo'
-  | 'Ford'
-  | 'Chevrolet'
-  | 'Dodge'
-  | 'Jeep'
-  | 'Hyundai'
-  | 'Kia'
-  | 'Tesla'
+  | 'toyota'
+  | 'honda'
+  | 'nissan'
+  | 'subaru'
+  | 'mazda'
+  | 'bmw'
+  | 'mercedes'
+  | 'audi-vw'
+  | 'volvo'
+  | 'ford'
+  | 'gm'
+  | 'mopar'
+  | 'hyundai-kia'
+  | 'tesla'
+
+export const MAKE_LABELS: Record<VehicleMake, string> = {
+  toyota: 'Toyota / Lexus',
+  honda: 'Honda / Acura',
+  nissan: 'Nissan / Infiniti',
+  subaru: 'Subaru',
+  mazda: 'Mazda',
+  bmw: 'BMW / MINI',
+  mercedes: 'Mercedes-Benz',
+  'audi-vw': 'Audi / VW / Porsche',
+  volvo: 'Volvo',
+  ford: 'Ford / Lincoln',
+  gm: 'Chevrolet / GMC / Cadillac',
+  mopar: 'Dodge / RAM / Jeep',
+  'hyundai-kia': 'Hyundai / Kia / Genesis',
+  tesla: 'Tesla',
+}
 
 export const MAKE_GROUPS: { group: string; makes: VehicleMake[] }[] = [
-  { group: 'Japanese', makes: ['Toyota', 'Lexus', 'Honda', 'Nissan', 'Subaru', 'Mazda'] },
-  { group: 'German / European', makes: ['BMW', 'Mercedes-Benz', 'Audi', 'Volkswagen', 'Porsche', 'Volvo'] },
-  { group: 'American', makes: ['Ford', 'Chevrolet', 'Dodge', 'Jeep'] },
-  { group: 'Korean', makes: ['Hyundai', 'Kia'] },
-  { group: 'Electric', makes: ['Tesla'] },
+  { group: 'Japanese', makes: ['toyota', 'honda', 'nissan', 'subaru', 'mazda'] },
+  { group: 'German / European', makes: ['bmw', 'mercedes', 'audi-vw', 'volvo'] },
+  { group: 'American', makes: ['ford', 'gm', 'mopar'] },
+  { group: 'Korean', makes: ['hyundai-kia'] },
+  { group: 'Electric', makes: ['tesla'] },
 ]
 
 export interface ReviewSource {

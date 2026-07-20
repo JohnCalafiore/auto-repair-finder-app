@@ -16,7 +16,7 @@ export interface ScoredShop {
 }
 
 const PHILLY: LatLng = { lat: 39.9526, lng: -75.1652 }
-const SEARCH_RADIUS_MILES = 30
+const SEARCH_RADIUS_MILES = 12
 
 export default function App() {
   const [shops, setShops] = useState<Shop[]>([])

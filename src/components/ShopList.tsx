@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS } from '../types'
+import { CATEGORY_LABELS, MAKE_LABELS } from '../types'
 import type { ScoredShop } from '../App'
 import { formatHoursToday } from '../lib/geo'
 import { TIER_LABELS } from '../lib/trustScore'
@@ -43,7 +43,7 @@ export function ShopList({
               </div>
               {s.shop.specialties && s.shop.specialties.length > 0 && (
                 <div className="shop-card-meta specialty-line">
-                  Specializes in {s.shop.specialties.join(' · ')}
+                  Specializes in {s.shop.specialties.map((m) => MAKE_LABELS[m]).join(' · ')}
                 </div>
               )}
               <div className="shop-card-meta shop-card-sub">

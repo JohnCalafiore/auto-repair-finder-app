@@ -1,4 +1,11 @@
-import { CATEGORY_LABELS, MAKE_GROUPS, type Certification, type ServiceCategory, type VehicleMake } from '../types'
+import {
+  CATEGORY_LABELS,
+  MAKE_GROUPS,
+  MAKE_LABELS,
+  type Certification,
+  type ServiceCategory,
+  type VehicleMake,
+} from '../types'
 
 export interface Filters {
   query: string
@@ -102,7 +109,7 @@ export function FilterPanel({
             <optgroup key={g.group} label={g.group}>
               {g.makes.map((m) => (
                 <option key={m} value={m}>
-                  {m}
+                  {MAKE_LABELS[m]}
                 </option>
               ))}
             </optgroup>
@@ -110,7 +117,7 @@ export function FilterPanel({
         </select>
         {filters.make && (
           <p className="make-hint">
-            {filters.make} specialists are listed first; shops that service all makes are still included.
+            {MAKE_LABELS[filters.make]} specialists are listed first; shops that service all makes are still included.
           </p>
         )}
       </fieldset>
