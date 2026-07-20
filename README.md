@@ -15,16 +15,19 @@ Find auto repair shops on a map and judge them by more than star ratings. Every 
 
 ## The Trust Score
 
-Star ratings alone are gameable. The composite blends six independent signals:
+Star ratings alone are gameable. The composite blends nine independent signals (weights in `src/lib/trustScore.ts`, documented in-app via the "What's the trust score?" window):
 
 | Signal | Weight | What it measures |
 | --- | --- | --- |
-| Customer reviews | 35% | Volume-adjusted average across Google, Yelp, and Carfax (a 5.0 from 4 reviews can't beat a 4.7 from 900) |
-| BBB rating | 25% | Letter grade A+–F, plus accreditation bonus |
-| Complaint history | 15% | BBB complaints relative to customer volume, and whether the shop resolves them |
-| Years in business | 10% | Longevity as a proxy for repeat customers |
-| Certifications | 10% | ASE, AAA Approved, I-CAR Gold, NAPA AutoCare |
-| Cross-platform consistency | 5% | Whether ratings agree between platforms (big spreads suggest manipulation) |
+| Customer reviews | 30% | Volume-adjusted average across Google, Yelp, and Carfax (a 5.0 from 4 reviews can't beat a 4.7 from 900) |
+| BBB rating | 20% | Letter grade A+–F, plus accreditation bonus |
+| Complaint history | 12% | BBB complaints relative to customer volume, and whether the shop resolves them |
+| Years in business | 8% | Longevity as a proxy for repeat customers |
+| Certifications | 8% | ASE, AAA Approved, I-CAR Gold, NAPA AutoCare, BBB accreditation |
+| Rating trend | 6% | Recent ~12-month review average vs lifetime (catches decline under new ownership) |
+| Warranty coverage | 6% | Length of the posted parts & labor warranty |
+| State licensing | 6% | Registered/licensed repair facility with the state |
+| Cross-platform consistency | 4% | Whether ratings agree between platforms (big spreads suggest manipulation) |
 
 The engine lives in `src/lib/trustScore.ts` and is source-agnostic — every component shows its inputs in the UI ("Why this trust score"), so users see the receipts, not just a number.
 
