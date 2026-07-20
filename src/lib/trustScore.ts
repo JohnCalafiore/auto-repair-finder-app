@@ -4,16 +4,21 @@ import type { BbbGrade, Shop, TrustBreakdownEntry, TrustScore } from '../types'
  * Composite Trust Score engine.
  *
  * The whole point of this app is that star ratings alone are gameable and
- * incomplete. The composite blends six independent signals, each normalized
- * to 0–100, then weighted:
- *
- *   35%  Customer reviews (volume-adjusted across Google / Yelp / Carfax)
- *   25%  BBB rating + accreditation
- *   15%  Complaint history (frequency + how the shop resolves them)
- *   10%  Longevity (years in business)
- *   10%  Certifications (ASE, AAA, I-CAR, NAPA)
- *    5%  Cross-platform consistency (do ratings agree between sources?)
+ * incomplete. The composite blends nine independent signals, each normalized
+ * to 0–100, then weighted per WEIGHTS below.
  */
+
+export const WEIGHTS = {
+  reviews: 0.3,
+  bbb: 0.2,
+  complaints: 0.12,
+  longevity: 0.08,
+  certs: 0.08,
+  trend: 0.06,
+  warranty: 0.06,
+  license: 0.06,
+  consistency: 0.04,
+} as const
 
 const BBB_GRADE_SCORES: Record<BbbGrade, number> = {
   'A+': 100, A: 94, 'A-': 88,
@@ -42,7 +47,7 @@ function reviewScore(shop: Shop): TrustBreakdownEntry {
     key: 'reviews',
     label: 'Customer reviews',
     score: Math.round(score),
-    weight: 0.35,
+    weight: WEIGHTS.reviews,
     detail: `${weightedAvg.toFixed(1)}★ volume-adjusted across ${totalCount.toLocaleString()} reviews`,
   }
 }
@@ -55,7 +60,7 @@ function bbbScore(shop: Shop): TrustBreakdownEntry {
     key: 'bbb',
     label: 'BBB rating',
     score: Math.round(score),
-    weight: 0.25,
+    weight: WEIGHTS.bbb,
     detail:
       bbbGrade === 'NR'
         ? 'Not yet rated by the BBB'
@@ -75,7 +80,7 @@ function complaintScore(shop: Shop): TrustBreakdownEntry {
     key: 'complaints',
     label: 'Complaint history',
     score: Math.round(Math.max(0, Math.min(100, score))),
-    weight: 0.15,
+    weight: WEIGHTS.complaints,
     detail:
       complaints3y === 0
         ? 'No BBB complaints in the last 3 years'
@@ -92,7 +97,7 @@ function longevityScore(shop: Shop, currentYear: number): TrustBreakdownEntry {
     key: 'longevity',
     label: 'Years in business',
     score: Math.round(score),
-    weight: 0.1,
+    weight: WEIGHTS.longevity,
     detail: `Serving customers since ${shop.signals.yearEstablished} (${years} years)`,
   }
 }
@@ -104,7 +109,7 @@ function certificationScore(shop: Shop): TrustBreakdownEntry {
     key: 'certs',
     label: 'Certifications',
     score: Math.round(score),
-    weight: 0.1,
+    weight: WEIGHTS.certs,
     detail: certs.length ? certs.join(' · ') : 'No industry certifications on file',
   }
 }
@@ -116,7 +121,7 @@ function consistencyScore(shop: Shop): TrustBreakdownEntry {
       key: 'consistency',
       label: 'Cross-platform consistency',
       score: 50,
-      weight: 0.05,
+      weight: WEIGHTS.consistency,
       detail: 'Only one review source available',
     }
   }
@@ -126,11 +131,50 @@ function consistencyScore(shop: Shop): TrustBreakdownEntry {
     key: 'consistency',
     label: 'Cross-platform consistency',
     score: Math.round(score),
-    weight: 0.05,
+    weight: WEIGHTS.consistency,
     detail:
       spread <= 0.3
         ? 'Ratings agree closely across platforms'
         : `${spread.toFixed(1)}★ spread between review platforms`,
+  }
+}
+
+function trendScore(shop: Shop): TrustBreakdownEntry {
+  const delta = shop.signals.recentDelta
+  const score = Math.max(0, Math.min(100, 50 + delta * 80))
+  return {
+    key: 'trend',
+    label: 'Rating trend',
+    score: Math.round(score),
+    weight: WEIGHTS.trend,
+    detail:
+      delta >= 0.05
+        ? `Recent reviews up ${delta.toFixed(1)}★ vs lifetime average`
+        : delta <= -0.05
+          ? `Recent reviews down ${Math.abs(delta).toFixed(1)}★ vs lifetime average`
+          : 'Recent reviews steady vs lifetime average',
+  }
+}
+
+function warrantyScore(shop: Shop): TrustBreakdownEntry {
+  const months = shop.signals.warrantyMonths
+  return {
+    key: 'warranty',
+    label: 'Warranty coverage',
+    score: Math.round(Math.min(100, (months / 36) * 100)),
+    weight: WEIGHTS.warranty,
+    detail: months > 0 ? `${months}-month parts & labor warranty` : 'No posted warranty',
+  }
+}
+
+function licenseScore(shop: Shop): TrustBreakdownEntry {
+  const licensed = shop.signals.stateLicensed
+  return {
+    key: 'license',
+    label: 'State licensing',
+    score: licensed ? 100 : 25,
+    weight: WEIGHTS.license,
+    detail: licensed ? 'State-registered repair facility' : 'No state registration on file',
   }
 }
 
@@ -141,6 +185,9 @@ export function computeTrustScore(shop: Shop, now: Date = new Date()): TrustScor
     complaintScore(shop),
     longevityScore(shop, now.getFullYear()),
     certificationScore(shop),
+    trendScore(shop),
+    warrantyScore(shop),
+    licenseScore(shop),
     consistencyScore(shop),
   ]
   const composite = Math.round(breakdown.reduce((s, e) => s + e.score * e.weight, 0))

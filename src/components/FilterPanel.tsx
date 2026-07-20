@@ -14,7 +14,6 @@ export interface Filters {
   minTrust: number
   maxDistance: number // miles; Infinity = any
   openNow: boolean
-  bbbAccreditedOnly: boolean
   certifications: Set<Certification>
   sortBy: 'trust' | 'distance' | 'reviews'
 }
@@ -26,7 +25,6 @@ export const DEFAULT_FILTERS: Filters = {
   minTrust: 0,
   maxDistance: Infinity,
   openNow: false,
-  bbbAccreditedOnly: false,
   certifications: new Set(),
   sortBy: 'trust',
 }
@@ -39,10 +37,12 @@ export function FilterPanel({
   filters,
   onChange,
   resultCount,
+  onShowTrustInfo,
 }: {
   filters: Filters
   onChange: (f: Filters) => void
   resultCount: number
+  onShowTrustInfo: () => void
 }) {
   const toggleCategory = (c: ServiceCategory) => {
     const next = new Set(filters.categories)
@@ -62,7 +62,6 @@ export function FilterPanel({
     filters.minTrust === 0 &&
     filters.maxDistance === Infinity &&
     !filters.openNow &&
-    !filters.bbbAccreditedOnly &&
     filters.certifications.size === 0
 
   return (
@@ -124,7 +123,8 @@ export function FilterPanel({
 
       <fieldset className="filter-group">
         <legend>
-          Minimum trust score <span className="mono-num">{filters.minTrust > 0 ? filters.minTrust : 'any'}</span>
+          Minimum trust score <span className="legend-sep" aria-hidden>·</span>{' '}
+          <span className="mono-num">{filters.minTrust > 0 ? filters.minTrust : 'any'}</span>
         </legend>
         <input
           type="range"
@@ -135,6 +135,9 @@ export function FilterPanel({
           onChange={(e) => onChange({ ...filters, minTrust: Number(e.target.value) })}
           aria-label="Minimum trust score"
         />
+        <button className="trust-info-link" onClick={onShowTrustInfo}>
+          What's the trust score?
+        </button>
       </fieldset>
 
       <fieldset className="filter-group">
@@ -162,14 +165,6 @@ export function FilterPanel({
             onChange={(e) => onChange({ ...filters, openNow: e.target.checked })}
           />
           Open now
-        </label>
-        <label className="check-row">
-          <input
-            type="checkbox"
-            checked={filters.bbbAccreditedOnly}
-            onChange={(e) => onChange({ ...filters, bbbAccreditedOnly: e.target.checked })}
-          />
-          BBB accredited only
         </label>
         <div className="chip-row" style={{ marginTop: 8 }}>
           {ALL_CERTS.map((c) => (

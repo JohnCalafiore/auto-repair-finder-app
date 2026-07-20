@@ -87,6 +87,12 @@ export interface TrustSignals {
   complaintResolutionRate: number
   yearEstablished: number
   certifications: Certification[]
+  /** Recent ~12-month review average minus lifetime average (≈ −0.8…+0.8) */
+  recentDelta: number
+  /** Parts & labor warranty length; 0 = no posted warranty */
+  warrantyMonths: number
+  /** Registered/licensed repair facility with the state */
+  stateLicensed: boolean
 }
 
 export interface DayHours {

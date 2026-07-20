@@ -54,7 +54,6 @@ const BLURBS = [
 ]
 
 const GRADE_POOL: BbbGrade[] = ['A+', 'A+', 'A', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'D', 'NR', 'NR']
-const CERT_POOL: Certification[] = ['ASE Certified', 'AAA Approved', 'BBB Accredited', 'I-CAR Gold', 'NAPA AutoCare']
 const MAKE_POOL: VehicleMake[] = [
   'toyota', 'honda', 'nissan', 'subaru', 'mazda', 'bmw', 'mercedes', 'audi-vw',
   'volvo', 'ford', 'gm', 'mopar', 'hyundai-kia', 'tesla',
@@ -109,8 +108,17 @@ export function generateShopsAround(center: { lat: number; lng: number }, radius
     const yelpRating = Math.max(2.2, googleRating - rnd() * 0.8)
     const grade = pick(GRADE_POOL)
     const goodGrade = grade === 'A+' || grade === 'A' || grade === 'A-'
+    const bbbAccredited = goodGrade && rnd() < 0.5
+
+    // Weighted certification frequencies (good grade / weak grade) so every
+    // area has a sensible spread; BBB Accredited stays tied to the BBB flag
+    // so the accreditation filter and the certification list never disagree.
     const certifications = new Set<Certification>()
-    while (rnd() < (goodGrade ? 0.6 : 0.25) && certifications.size < 3) certifications.add(pick(CERT_POOL))
+    if (rnd() < (goodGrade ? 0.75 : 0.45)) certifications.add('ASE Certified')
+    if (rnd() < (goodGrade ? 0.35 : 0.1)) certifications.add('AAA Approved')
+    if (rnd() < (goodGrade ? 0.3 : 0.15)) certifications.add('NAPA AutoCare')
+    if (rnd() < (categories.has('body') ? 0.5 : 0.05)) certifications.add('I-CAR Gold')
+    if (bbbAccredited) certifications.add('BBB Accredited')
 
     let specialties: VehicleMake[] | undefined
     if (rnd() < 0.3) {
@@ -146,10 +154,13 @@ export function generateShopsAround(center: { lat: number; lng: number }, radius
           { source: 'Yelp', rating: round1(yelpRating), count: int(10, Math.max(20, Math.floor(googleCount / 3))) },
         ],
         bbbGrade: grade,
-        bbbAccredited: goodGrade && rnd() < 0.5,
+        bbbAccredited,
         complaints3y: goodGrade ? int(0, 3) : int(2, 15),
         complaintResolutionRate: Math.round((goodGrade ? 0.6 + rnd() * 0.4 : rnd() * 0.7) * 100) / 100,
         yearEstablished: int(1975, 2022),
+        recentDelta: round1(goodGrade ? -0.1 + rnd() * 0.5 : -0.6 + rnd() * 0.7),
+        warrantyMonths: goodGrade ? pick([12, 12, 24, 24, 36]) : pick([0, 0, 6, 12]),
+        stateLicensed: rnd() < (goodGrade ? 0.95 : 0.8),
         certifications: [...certifications],
       },
     })

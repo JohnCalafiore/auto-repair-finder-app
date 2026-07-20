@@ -3,7 +3,15 @@ import type { ScoredShop } from '../App'
 import { DAY_NAMES, formatHoursToday } from '../lib/geo'
 import { TrustGauge } from './TrustGauge'
 
-export function ShopDetail({ scored, onClose }: { scored: ScoredShop; onClose: () => void }) {
+export function ShopDetail({
+  scored,
+  onClose,
+  onShowTrustInfo,
+}: {
+  scored: ScoredShop
+  onClose: () => void
+  onShowTrustInfo: () => void
+}) {
   const { shop, trust, distance, openNow } = scored
   return (
     <aside className="detail-panel" aria-label={`Details for ${shop.name}`}>
@@ -35,7 +43,12 @@ export function ShopDetail({ scored, onClose }: { scored: ScoredShop; onClose: (
       <p className="detail-blurb">{shop.blurb}</p>
 
       <section className="detail-section">
-        <h3>Why this trust score</h3>
+        <h3>
+          Why this trust score
+          <button className="info-btn" onClick={onShowTrustInfo} aria-label="How the trust score works" title="How the trust score works">
+            ⓘ
+          </button>
+        </h3>
         <ul className="breakdown-list">
           {trust.breakdown.map((b) => (
             <li key={b.key} className="breakdown-row">

@@ -7,6 +7,7 @@ import { DEFAULT_FILTERS, FilterPanel, type Filters } from './components/FilterP
 import { ShopList } from './components/ShopList'
 import { MapView } from './components/MapView'
 import { ShopDetail } from './components/ShopDetail'
+import { TrustScoreInfo } from './components/TrustScoreInfo'
 
 export interface ScoredShop {
   shop: Shop
@@ -26,6 +27,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<LatLng | null>(null)
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
+  const [showTrustInfo, setShowTrustInfo] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -73,7 +75,6 @@ export default function App() {
       if (s.trust.composite < filters.minTrust) return false
       if (s.distance != null && s.distance > filters.maxDistance) return false
       if (filters.openNow && !s.openNow) return false
-      if (filters.bbbAccreditedOnly && !s.shop.signals.bbbAccredited) return false
       if (
         filters.certifications.size > 0 &&
         ![...filters.certifications].every((c) => s.shop.signals.certifications.includes(c))
@@ -165,7 +166,12 @@ export default function App() {
 
       <div className="app-body">
         <div className="sidebar" ref={sidebarRef}>
-          <FilterPanel filters={filters} onChange={setFilters} resultCount={visible.length} />
+          <FilterPanel
+            filters={filters}
+            onChange={setFilters}
+            resultCount={visible.length}
+            onShowTrustInfo={() => setShowTrustInfo(true)}
+          />
           <ShopList shops={visible} selectedId={selectedId} onSelect={setSelectedId} />
         </div>
 
@@ -178,9 +184,17 @@ export default function App() {
             onSearchArea={setSearchCenter}
             userLocation={userLocation}
           />
-          {selected && <ShopDetail scored={selected} onClose={() => setSelectedId(null)} />}
+          {selected && (
+            <ShopDetail
+              scored={selected}
+              onClose={() => setSelectedId(null)}
+              onShowTrustInfo={() => setShowTrustInfo(true)}
+            />
+          )}
         </main>
       </div>
+
+      {showTrustInfo && <TrustScoreInfo onClose={() => setShowTrustInfo(false)} />}
     </div>
   )
 }
