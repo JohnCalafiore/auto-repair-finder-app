@@ -1,8 +1,16 @@
-import { CATEGORY_LABELS, type Certification, type ServiceCategory } from '../types'
+import {
+  CATEGORY_LABELS,
+  MAKE_GROUPS,
+  MAKE_LABELS,
+  type Certification,
+  type ServiceCategory,
+  type VehicleMake,
+} from '../types'
 
 export interface Filters {
   query: string
   categories: Set<ServiceCategory>
+  make: VehicleMake | ''
   minTrust: number
   maxDistance: number // miles; Infinity = any
   openNow: boolean
@@ -14,6 +22,7 @@ export interface Filters {
 export const DEFAULT_FILTERS: Filters = {
   query: '',
   categories: new Set(),
+  make: '',
   minTrust: 0,
   maxDistance: Infinity,
   openNow: false,
@@ -49,6 +58,7 @@ export function FilterPanel({
 
   const isDefault =
     filters.categories.size === 0 &&
+    filters.make === '' &&
     filters.minTrust === 0 &&
     filters.maxDistance === Infinity &&
     !filters.openNow &&
@@ -84,6 +94,32 @@ export function FilterPanel({
             </button>
           ))}
         </div>
+      </fieldset>
+
+      <fieldset className="filter-group">
+        <legend>Vehicle make</legend>
+        <select
+          className="make-select"
+          value={filters.make}
+          onChange={(e) => onChange({ ...filters, make: e.target.value as Filters['make'] })}
+          aria-label="Vehicle make"
+        >
+          <option value="">Any make</option>
+          {MAKE_GROUPS.map((g) => (
+            <optgroup key={g.group} label={g.group}>
+              {g.makes.map((m) => (
+                <option key={m} value={m}>
+                  {MAKE_LABELS[m]}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {filters.make && (
+          <p className="make-hint">
+            {MAKE_LABELS[filters.make]} specialists are listed first; shops that service all makes are still included.
+          </p>
+        )}
       </fieldset>
 
       <fieldset className="filter-group">

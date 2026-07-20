@@ -1,4 +1,4 @@
-import { CATEGORY_LABELS } from '../types'
+import { CATEGORY_LABELS, MAKE_LABELS } from '../types'
 import type { ScoredShop } from '../App'
 import { DAY_NAMES, formatHoursToday } from '../lib/geo'
 import { TrustGauge } from './TrustGauge'
@@ -15,6 +15,11 @@ export function ShopDetail({ scored, onClose }: { scored: ScoredShop; onClose: (
         <div>
           <h2 className="detail-name">{shop.name}</h2>
           <p className="detail-cats">{shop.categories.map((c) => CATEGORY_LABELS[c]).join(' · ')}</p>
+          {shop.specialties && shop.specialties.length > 0 && (
+            <p className="detail-cats specialty-line">
+              Specializes in {shop.specialties.map((m) => MAKE_LABELS[m]).join(' · ')}
+            </p>
+          )}
           <p className="detail-sub">
             <span className={openNow ? 'open-now' : 'closed-now'}>{openNow ? 'Open now' : 'Closed'}</span>
             {' · '}
