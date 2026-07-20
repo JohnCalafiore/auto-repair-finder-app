@@ -1,0 +1,707 @@
+/* ————————————————————————————————————————————————
+   TrueWrench design tokens
+   Palette: shop-floor gray, graphite chassis, safety
+   orange for action, gauge greens/ambers/reds for trust.
+   Type: Barlow Condensed (display) / Barlow (body) /
+   IBM Plex Mono (numbers — odometer duty).
+   ———————————————————————————————————————————————— */
+:root {
+  --shop-floor: #eef0f1;
+  --panel: #ffffff;
+  --chassis: #1b2228;
+  --chassis-2: #2b343c;
+  --steel: #5c6a75;
+  --hairline: #d5dade;
+  --safety: #e8551e;
+  --safety-dark: #c74413;
+  --tier-excellent: #178f5f;
+  --tier-good: #4b9f2e;
+  --tier-fair: #d99114;
+  --tier-caution: #c93a2b;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Barlow', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--chassis);
+  background: var(--shop-floor);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ————— Header ————— */
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 18px;
+  background: var(--chassis);
+  color: #fff;
+  border-bottom: 3px solid var(--safety);
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-mark {
+  font-size: 22px;
+  color: var(--safety);
+  align-self: center;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.brand-tag {
+  font-size: 12px;
+  color: #9fadb8;
+  letter-spacing: 0.02em;
+}
+
+.header-controls {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
+  flex: 1 1 320px;
+  max-width: 560px;
+}
+
+.search-input {
+  flex: 1;
+  padding: 9px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--chassis-2);
+  background: var(--chassis-2);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 14px;
+}
+
+.search-input::placeholder {
+  color: #8b99a5;
+}
+
+.search-input:focus-visible {
+  outline: 2px solid var(--safety);
+  outline-offset: 1px;
+}
+
+.locate-btn {
+  padding: 9px 14px;
+  border-radius: 6px;
+  border: none;
+  background: var(--safety);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.locate-btn:hover:not(:disabled) {
+  background: var(--safety-dark);
+}
+
+.locate-btn:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+/* ————— Layout ————— */
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sidebar {
+  width: 384px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+}
+
+.map-area {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.map-container {
+  position: absolute;
+  inset: 0;
+}
+
+/* ————— Filters ————— */
+.filter-panel {
+  padding: 14px 16px 6px;
+  border-bottom: 2px solid var(--chassis);
+}
+
+.filter-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.filter-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.filter-count {
+  color: var(--steel);
+  font-size: 12px;
+}
+
+.filter-reset {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--safety);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.filter-group {
+  border: none;
+  padding: 0;
+  margin: 0 0 14px;
+}
+
+.filter-group legend {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--steel);
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--hairline);
+  background: #fff;
+  color: var(--chassis);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.chip:hover {
+  border-color: var(--steel);
+}
+
+.chip-on {
+  background: var(--chassis);
+  border-color: var(--chassis);
+  color: #fff;
+}
+
+.chip-small {
+  font-size: 11.5px;
+  padding: 4px 8px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  cursor: pointer;
+}
+
+input[type='range'] {
+  width: 100%;
+  accent-color: var(--safety);
+}
+
+input[type='checkbox'] {
+  accent-color: var(--safety);
+  width: 15px;
+  height: 15px;
+}
+
+.mono-num {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+/* ————— Shop list ————— */
+.shop-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shop-card {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  font-family: var(--font-body);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.shop-card:hover {
+  border-color: var(--steel);
+}
+
+.shop-card-selected,
+.shop-card-selected:hover {
+  border-color: var(--safety);
+  box-shadow: 0 0 0 1px var(--safety);
+}
+
+.score-badge {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+}
+
+.score-badge-num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.tier-excellent .score-badge-num { font-size: 15px; }
+
+.score-badge.tier-excellent { background: var(--tier-excellent); }
+.score-badge.tier-good { background: var(--tier-good); }
+.score-badge.tier-fair { background: var(--tier-fair); }
+.score-badge.tier-caution { background: var(--tier-caution); }
+
+.shop-card-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.shop-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.shop-card-name {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.shop-card-distance {
+  color: var(--steel);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.shop-card-meta {
+  color: var(--steel);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.open-now {
+  color: var(--tier-excellent);
+  font-weight: 600;
+}
+
+.closed-now {
+  color: var(--tier-caution);
+  font-weight: 600;
+}
+
+.empty-state {
+  padding: 28px 20px;
+  color: var(--steel);
+}
+
+.empty-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--chassis);
+  margin: 0 0 6px;
+}
+
+/* ————— Map pins ————— */
+.map-pin {
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 50% 50% 4px;
+  transform: rotate(-45deg);
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.map-pin span {
+  transform: rotate(45deg);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.map-pin.tier-excellent { background: var(--tier-excellent); }
+.map-pin.tier-good { background: var(--tier-good); }
+.map-pin.tier-fair { background: var(--tier-fair); }
+.map-pin.tier-caution { background: var(--tier-caution); }
+
+.map-pin-selected {
+  outline: 3px solid var(--safety);
+  outline-offset: 1px;
+}
+
+/* ————— Detail panel ————— */
+.detail-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: 400px;
+  max-width: calc(100% - 24px);
+  background: var(--panel);
+  border-radius: 10px;
+  border-top: 4px solid var(--safety);
+  box-shadow: 0 8px 30px rgba(15, 22, 28, 0.28);
+  overflow-y: auto;
+  padding: 18px 20px 24px;
+  z-index: 1000;
+}
+
+.detail-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: var(--shop-floor);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: var(--steel);
+}
+
+.detail-close:hover {
+  color: var(--chassis);
+}
+
+.detail-head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-right: 20px;
+}
+
+.detail-name {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  margin: 0 0 2px;
+  text-transform: uppercase;
+}
+
+.detail-cats {
+  color: var(--steel);
+  margin: 0 0 6px;
+  font-size: 12.5px;
+}
+
+.detail-sub {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--chassis-2);
+}
+
+.detail-blurb {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--chassis-2);
+  border-left: 3px solid var(--hairline);
+  padding-left: 10px;
+}
+
+.detail-section {
+  margin-top: 20px;
+}
+
+.detail-section h3 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--chassis);
+}
+
+/* Trust breakdown */
+.breakdown-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.breakdown-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.breakdown-label {
+  font-weight: 600;
+}
+
+.breakdown-weight {
+  color: var(--steel);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.breakdown-bar {
+  height: 6px;
+  background: var(--shop-floor);
+  border-radius: 3px;
+  margin: 4px 0 3px;
+  overflow: hidden;
+}
+
+.breakdown-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--safety), var(--tier-excellent));
+  border-radius: 3px;
+}
+
+.breakdown-detail {
+  font-size: 11.5px;
+  color: var(--steel);
+}
+
+.source-list,
+.hours-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.source-list li,
+.hours-list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--hairline);
+  font-size: 13px;
+}
+
+.hours-today {
+  font-weight: 600;
+}
+
+.detail-contact {
+  margin: 0 0 4px;
+  font-size: 13px;
+}
+
+.detail-contact a {
+  color: var(--safety-dark);
+}
+
+.directions-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 9px 16px;
+  border-radius: 6px;
+  background: var(--chassis);
+  color: #fff;
+  text-decoration: none;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.directions-btn:hover {
+  background: var(--chassis-2);
+}
+
+/* ————— Trust gauge ————— */
+.trust-gauge {
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.gauge-track {
+  fill: none;
+  stroke: var(--shop-floor);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.gauge-fill {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+
+.tier-excellent .gauge-fill { stroke: var(--tier-excellent); }
+.tier-good .gauge-fill { stroke: var(--tier-good); }
+.tier-fair .gauge-fill { stroke: var(--tier-fair); }
+.tier-caution .gauge-fill { stroke: var(--tier-caution); }
+
+.gauge-tick {
+  stroke: #b9c2c9;
+}
+
+.gauge-needle {
+  stroke: var(--chassis);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.gauge-hub {
+  fill: var(--chassis);
+}
+
+.gauge-value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 20px;
+  fill: var(--chassis);
+}
+
+.gauge-unit {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  fill: var(--steel);
+}
+
+.gauge-tier-label {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: -6px;
+}
+
+.tier-excellent .gauge-tier-label { color: var(--tier-excellent); }
+.tier-good .gauge-tier-label { color: var(--tier-good); }
+.tier-fair .gauge-tier-label { color: var(--tier-fair); }
+.tier-caution .gauge-tier-label { color: var(--tier-caution); }
+
+/* ————— Focus + motion ————— */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--safety);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+/* ————— Responsive ————— */
+@media (max-width: 900px) {
+  .app-body {
+    flex-direction: column-reverse;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 45%;
+    border-right: none;
+    border-top: 1px solid var(--hairline);
+  }
+
+  .map-area {
+    height: 55%;
+  }
+
+  .detail-panel {
+    width: auto;
+    left: 12px;
+  }
+
+  .brand-tag {
+    display: none;
+  }
+}
