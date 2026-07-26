@@ -121,8 +121,10 @@ export interface Shop {
   website?: string
   lat: number
   lng: number
-  hours: WeekHours
-  priceLevel: 1 | 2 | 3 // $ to $$$
+  /** null = hours unknown for this listing (e.g. Overture data has none) */
+  hours: WeekHours | null
+  /** $ to $$$; null = unknown */
+  priceLevel: 1 | 2 | 3 | null
   /** Makes this shop specializes in. Empty/undefined = services all makes. */
   specialties?: VehicleMake[]
   signals: TrustSignals
@@ -144,6 +146,7 @@ export interface TrustBreakdownEntry {
 export interface TrustScore {
   /** 0–100 composite */
   composite: number
-  tier: 'excellent' | 'good' | 'fair' | 'caution'
+  /** 'unrated' = no signal has connected data yet (score is not meaningful) */
+  tier: 'excellent' | 'good' | 'fair' | 'caution' | 'unrated'
   breakdown: TrustBreakdownEntry[]
 }

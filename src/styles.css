@@ -549,6 +549,7 @@ input[type='checkbox'] {
 .score-badge.tier-good { background: var(--tier-good); }
 .score-badge.tier-fair { background: var(--tier-fair); }
 .score-badge.tier-caution { background: var(--tier-caution); }
+.score-badge.tier-unrated { background: var(--steel); }
 
 .shop-card-body {
   min-width: 0;
@@ -629,6 +630,7 @@ input[type='checkbox'] {
 .map-pin.tier-good { background: var(--tier-good); }
 .map-pin.tier-fair { background: var(--tier-fair); }
 .map-pin.tier-caution { background: var(--tier-caution); }
+.map-pin.tier-unrated { background: var(--steel); }
 
 .map-pin-selected {
   outline: 3px solid var(--safety);
@@ -839,6 +841,7 @@ input[type='checkbox'] {
 .tier-good .gauge-fill { stroke: var(--tier-good); }
 .tier-fair .gauge-fill { stroke: var(--tier-fair); }
 .tier-caution .gauge-fill { stroke: var(--tier-caution); }
+.tier-unrated .gauge-fill { stroke: var(--steel); }
 
 .gauge-tick {
   stroke: #b9c2c9;
@@ -880,6 +883,12 @@ input[type='checkbox'] {
 .tier-good .gauge-tier-label { color: var(--tier-good); }
 .tier-fair .gauge-tier-label { color: var(--tier-fair); }
 .tier-caution .gauge-tier-label { color: var(--tier-caution); }
+.tier-unrated .gauge-tier-label { color: var(--steel); }
+
+.enriching-row {
+  color: var(--steel);
+  font-style: italic;
+}
 
 /* ————— Focus + motion ————— */
 button:focus-visible,

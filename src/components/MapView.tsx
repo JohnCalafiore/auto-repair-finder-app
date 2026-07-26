@@ -6,9 +6,10 @@ import type { ScoredShop } from '../App'
 import { distanceMiles, type LatLng } from '../lib/geo'
 
 function scoreIcon(score: number, tier: string, selected: boolean) {
+  const label = tier === 'unrated' ? '–' : String(score)
   return L.divIcon({
     className: '',
-    html: `<div class="map-pin tier-${tier} ${selected ? 'map-pin-selected' : ''}"><span>${score}</span></div>`,
+    html: `<div class="map-pin tier-${tier} ${selected ? 'map-pin-selected' : ''}"><span>${label}</span></div>`,
     iconSize: [36, 44],
     iconAnchor: [18, 44],
   })

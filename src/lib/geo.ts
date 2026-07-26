@@ -17,7 +17,8 @@ export function distanceMiles(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.sqrt(h))
 }
 
-export function isOpenNow(hours: WeekHours, now: Date = new Date()): boolean {
+export function isOpenNow(hours: WeekHours | null, now: Date = new Date()): boolean {
+  if (!hours) return false
   const day = hours[now.getDay()]
   if (!day.open || !day.close) return false
   const minutes = now.getHours() * 60 + now.getMinutes()
@@ -28,7 +29,8 @@ export function isOpenNow(hours: WeekHours, now: Date = new Date()): boolean {
   return minutes >= parse(day.open) && minutes < parse(day.close)
 }
 
-export function formatHoursToday(hours: WeekHours, now: Date = new Date()): string {
+export function formatHoursToday(hours: WeekHours | null, now: Date = new Date()): string {
+  if (!hours) return 'Hours unavailable'
   const day = hours[now.getDay()]
   if (!day.open || !day.close) return 'Closed today'
   const fmt = (t: string) => {
