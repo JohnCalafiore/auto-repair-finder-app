@@ -51,15 +51,15 @@ export function ShopDetail({
         </h3>
         <ul className="breakdown-list">
           {trust.breakdown.map((b) => (
-            <li key={b.key} className="breakdown-row">
+            <li key={b.key} className={`breakdown-row ${b.available ? '' : 'breakdown-unavailable'}`}>
               <div className="breakdown-label-row">
                 <span className="breakdown-label">
                   {b.label} <span className="breakdown-weight">×{Math.round(b.weight * 100)}%</span>
                 </span>
-                <span className="mono-num">{b.score}</span>
+                <span className="mono-num">{b.available ? b.score : '—'}</span>
               </div>
               <div className="breakdown-bar">
-                <div className="breakdown-bar-fill" style={{ width: `${b.score}%` }} />
+                {b.available && <div className="breakdown-bar-fill" style={{ width: `${b.score}%` }} />}
               </div>
               <div className="breakdown-detail">{b.detail}</div>
             </li>
@@ -81,7 +81,11 @@ export function ShopDetail({
           <li>
             <span>Better Business Bureau</span>
             <span className="mono-num">
-              {shop.signals.bbbGrade === 'NR' ? 'Not rated' : shop.signals.bbbGrade}
+              {shop.signals.bbbGrade === null
+                ? 'Not connected'
+                : shop.signals.bbbGrade === 'NR'
+                  ? 'Not rated'
+                  : shop.signals.bbbGrade}
               {shop.signals.bbbAccredited ? ' · Accredited' : ''}
             </span>
           </li>

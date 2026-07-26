@@ -29,25 +29,42 @@ Star ratings alone are gameable. The composite blends nine independent signals (
 | State licensing | 6% | Registered/licensed repair facility with the state |
 | Cross-platform consistency | 4% | Whether ratings agree between platforms (big spreads suggest manipulation) |
 
-The engine lives in `src/lib/trustScore.ts` and is source-agnostic — every component shows its inputs in the UI ("Why this trust score"), so users see the receipts, not just a number.
+The engine lives in `src/lib/trustScore.ts` and is source-agnostic — every component shows its inputs in the UI ("Why this trust score"), so users see the receipts, not just a number. When a signal's data source isn't connected for a shop (for example, BBB data on a Google-only result), that signal is marked "Data source not connected" and the composite is reweighted across the signals that are available, rather than inventing a value.
 
-## Data
+## Data sources
 
-The app currently ships with a realistic curated seed dataset (23 shops around Philadelphia, PA) so it runs with zero configuration. Searching anywhere outside the seeded area — via "Use my location" or "Search this area" — synthesizes deterministic demo shops around that point (`src/data/generator.ts`), so the whole map is usable before live APIs are connected; the same area always produces the same shops. The UI talks only to the `ShopDataAdapter` interface in `src/data/adapters.ts`; wiring in live data is a drop-in change behind a small backend:
+Live shops come from the **Google Places API (New)** through a serverless proxy (`api/shops.ts`) so the API key never reaches the browser. The client talks only to the `ShopDataAdapter` interface (`src/data/adapters.ts`); `RemotePlacesAdapter` calls the proxy, and on any failure — no key configured, network error, empty result — falls back to the bundled demo data (a curated 23-shop Philadelphia set plus a deterministic generator in `src/data/generator.ts`) with a visible "demonstration data" banner.
 
-- **Google Places API** — shop discovery, geocoding, Google ratings, hours
-- **Yelp Fusion API** — Yelp ratings and review counts
+### Enabling live Google Places data
+
+1. In Google Cloud, create a project, enable **Places API (New)**, and enable billing.
+2. Create an API key (restrict it to Places API (New)).
+3. In Vercel → your project → **Settings → Environment Variables**, add `GOOGLE_PLACES_API_KEY` (Production + Preview). Redeploy.
+4. Smoke-test: `GET /api/shops?lat=39.95&lng=-75.16&radius=5` should return `{"source":"google", ...}`.
+
+The secret is read only from `process.env` at runtime and is never committed.
+
+Places supplies name, location, hours, phone, website, Google rating + review count, and price. Service categories and make specialties are inferred heuristically from the business name. The remaining Trust Score signals are populated by adapters not yet built:
+
+- **Yelp Fusion API** — Yelp ratings and review counts (adds cross-platform consistency)
 - **BBB partner/licensed data** — letter grade, accreditation, complaints and resolutions
-- **Carfax Service Shops / state licensing boards** — additional trust signals
+- **State licensing boards / Carfax** — licensing, warranty, and additional signals
+
+Until those are added, their rows show "Data source not connected" for live shops.
+
+### Local development
+
+`npm run dev` (plain Vite) has no serverless functions, so it always shows demo data. To exercise the live `/api/shops` proxy locally, use `vercel dev` with `GOOGLE_PLACES_API_KEY` set in a local `.env`.
 
 ## Run it
 
 ```bash
 npm install
-npm run dev      # dev server at http://localhost:5173
-npm run build    # type-check + production build to dist/
+npm run dev            # dev server at http://localhost:5173 (demo data only)
+npm run build          # type-check + production build to dist/
+npm run typecheck:api  # type-check the serverless functions in api/
 ```
 
 ## Stack
 
-React 19 · TypeScript · Vite · Leaflet / react-leaflet · OpenStreetMap tiles
+React 19 · TypeScript · Vite · Leaflet / react-leaflet · OpenStreetMap tiles · Vercel serverless functions · Google Places API (New)

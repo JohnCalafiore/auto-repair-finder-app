@@ -126,8 +126,10 @@ export function TrustScoreInfo({ onClose }: { onClose: () => void }) {
 
         <p className="modal-note">
           Every shop's detail panel shows the full breakdown under "Why this trust score," so you
-          can see the inputs behind the number. The app currently runs on demonstration data;
-          production data would come from Google, Yelp, the BBB, and state licensing records.
+          can see the inputs behind the number. Live shops come from Google Places, which supplies
+          reviews, hours, and location; signals like the BBB grade, complaint history, and licensing
+          show as "Data source not connected" until those adapters are added, and the composite is
+          reweighted across whatever is available so it stays honest.
         </p>
       </div>
     </div>

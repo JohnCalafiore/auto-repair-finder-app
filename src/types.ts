@@ -75,24 +75,32 @@ export interface ReviewSource {
   count: number
 }
 
-/** Raw trust signals gathered per shop. In production these come from
- *  the data adapters (Google Places, BBB, Yelp, state licensing boards). */
+/**
+ * Raw trust signals gathered per shop. In production these come from the
+ * data adapters (Google Places, BBB, Yelp, state licensing boards).
+ *
+ * Fields that a live source may not provide are `T | null`. `null` means
+ * "not available" (the data source isn't connected) and is excluded from the
+ * Trust Score with the composite reweighted across the signals we do have —
+ * distinct from a real value like 0 complaints or an empty certifications
+ * list. Demo data (seed + generator) always supplies concrete values.
+ */
 export interface TrustSignals {
   reviews: ReviewSource[]
-  bbbGrade: BbbGrade
-  bbbAccredited: boolean
+  bbbGrade: BbbGrade | null
+  bbbAccredited: boolean | null
   /** BBB complaints filed in the last 3 years */
-  complaints3y: number
+  complaints3y: number | null
   /** Share of complaints the business responded to and resolved (0–1) */
-  complaintResolutionRate: number
-  yearEstablished: number
-  certifications: Certification[]
+  complaintResolutionRate: number | null
+  yearEstablished: number | null
+  certifications: Certification[] | null
   /** Recent ~12-month review average minus lifetime average (≈ −0.8…+0.8) */
-  recentDelta: number
+  recentDelta: number | null
   /** Parts & labor warranty length; 0 = no posted warranty */
-  warrantyMonths: number
+  warrantyMonths: number | null
   /** Registered/licensed repair facility with the state */
-  stateLicensed: boolean
+  stateLicensed: boolean | null
 }
 
 export interface DayHours {
@@ -129,6 +137,8 @@ export interface TrustBreakdownEntry {
   /** weight of this component in the composite, 0–1 */
   weight: number
   detail: string
+  /** false when the signal's data source isn't connected; excluded from the composite */
+  available: boolean
 }
 
 export interface TrustScore {
