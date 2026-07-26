@@ -28,12 +28,16 @@ export default function App() {
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
   const [showTrustInfo, setShowTrustInfo] = useState(false)
+  const [dataSource, setDataSource] = useState<'google' | 'demo'>('demo')
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
-    dataAdapter.fetchShops(searchCenter, SEARCH_RADIUS_MILES).then((s) => {
-      if (!cancelled) setShops(s)
+    dataAdapter.fetchShops(searchCenter, SEARCH_RADIUS_MILES).then((result) => {
+      if (!cancelled) {
+        setShops(result.shops)
+        setDataSource(result.source)
+      }
     })
     return () => {
       cancelled = true
@@ -75,11 +79,11 @@ export default function App() {
       if (s.trust.composite < filters.minTrust) return false
       if (s.distance != null && s.distance > filters.maxDistance) return false
       if (filters.openNow && !s.openNow) return false
-      if (
-        filters.certifications.size > 0 &&
-        ![...filters.certifications].every((c) => s.shop.signals.certifications.includes(c))
-      )
-        return false
+      if (filters.certifications.size > 0) {
+        const certs = s.shop.signals.certifications
+        // null = certification data not available for this shop (e.g. Google-only)
+        if (!certs || ![...filters.certifications].every((c) => certs.includes(c))) return false
+      }
       // Make filter: specialists in the make match, and so do all-make generalists
       if (make) {
         const sp = s.shop.specialties
@@ -161,6 +165,12 @@ export default function App() {
       {locError && (
         <div className="loc-toast" role="alert">
           {locError}
+        </div>
+      )}
+
+      {dataSource === 'demo' && (
+        <div className="demo-banner">
+          Showing demonstration data. Connect a Google Places API key for live shops near you.
         </div>
       )}
 

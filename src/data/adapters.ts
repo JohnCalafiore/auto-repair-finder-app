@@ -21,19 +21,52 @@ import { distanceMiles } from '../lib/geo'
  * engine (src/lib/trustScore.ts) is source-agnostic and needs no changes
  * when adapters are added.
  */
+export type DataSource = 'google' | 'demo'
+
+export interface ShopResult {
+  shops: Shop[]
+  source: DataSource
+}
+
 export interface ShopDataAdapter {
   /** Fetch shops near a point. Radius in miles. */
-  fetchShops(center: { lat: number; lng: number }, radiusMiles: number): Promise<Shop[]>
+  fetchShops(center: { lat: number; lng: number }, radiusMiles: number): Promise<ShopResult>
 }
 
 export class LocalSeedAdapter implements ShopDataAdapter {
-  async fetchShops(center: { lat: number; lng: number }, radiusMiles: number): Promise<Shop[]> {
+  async fetchShops(center: { lat: number; lng: number }, radiusMiles: number): Promise<ShopResult> {
     const curated = SHOPS.filter((s) => distanceMiles(center, { lat: s.lat, lng: s.lng }) <= radiusMiles)
     // Outside the curated seed area, synthesize deterministic demo shops so
     // "Use my location" and "Search this area" work anywhere on the map.
-    if (curated.length >= 6) return curated
-    return [...curated, ...generateShopsAround(center, radiusMiles)]
+    const shops = curated.length >= 6 ? curated : [...curated, ...generateShopsAround(center, radiusMiles)]
+    return { shops, source: 'demo' }
   }
 }
 
-export const dataAdapter: ShopDataAdapter = new LocalSeedAdapter()
+/**
+ * Talks to the /api/shops serverless proxy for live Google Places results.
+ * Any failure — no API key configured, network error, empty response — falls
+ * back to the local demo data so the map is never blank.
+ */
+export class RemotePlacesAdapter implements ShopDataAdapter {
+  private fallback = new LocalSeedAdapter()
+
+  async fetchShops(center: { lat: number; lng: number }, radiusMiles: number): Promise<ShopResult> {
+    try {
+      const res = await fetch(
+        `/api/shops?lat=${center.lat}&lng=${center.lng}&radius=${radiusMiles}`,
+      )
+      if (res.ok) {
+        const data = (await res.json()) as { source?: string; shops?: Shop[] }
+        if (data.source === 'google' && data.shops && data.shops.length > 0) {
+          return { shops: data.shops, source: 'google' }
+        }
+      }
+    } catch {
+      // fall through to demo data
+    }
+    return this.fallback.fetchShops(center, radiusMiles)
+  }
+}
+
+export const dataAdapter: ShopDataAdapter = new RemotePlacesAdapter()

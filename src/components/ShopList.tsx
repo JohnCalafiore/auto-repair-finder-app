@@ -54,7 +54,9 @@ export function ShopList({
                 {formatHoursToday(s.shop.hours)}
                 {' · '}
                 {'$'.repeat(s.shop.priceLevel)}
-                {s.shop.signals.bbbGrade !== 'NR' && <> {' · BBB '}{s.shop.signals.bbbGrade}</>}
+                {s.shop.signals.bbbGrade && s.shop.signals.bbbGrade !== 'NR' && (
+                  <> {' · BBB '}{s.shop.signals.bbbGrade}</>
+                )}
               </div>
             </div>
           </button>

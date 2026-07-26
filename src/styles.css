@@ -451,6 +451,23 @@ input[type='checkbox'] {
   font-size: 13px;
 }
 
+.demo-banner {
+  background: #fdf1e7;
+  color: var(--safety-dark);
+  border-bottom: 1px solid #f2d4bf;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.breakdown-unavailable {
+  opacity: 0.55;
+}
+
+.breakdown-unavailable .breakdown-detail {
+  font-style: italic;
+}
+
 .search-area-btn {
   position: absolute;
   top: 14px;

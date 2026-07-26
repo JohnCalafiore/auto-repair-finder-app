@@ -6,7 +6,18 @@ import type { BbbGrade, Shop, TrustBreakdownEntry, TrustScore } from '../types'
  * The whole point of this app is that star ratings alone are gameable and
  * incomplete. The composite blends nine independent signals, each normalized
  * to 0–100, then weighted per WEIGHTS below.
+ *
+ * A signal whose data source isn't connected (e.g. BBB for a shop that only
+ * came from Google Places) is marked `available: false` and dropped from the
+ * composite, which is then reweighted across the signals that remain. This
+ * keeps the score honest for real businesses instead of inventing values.
  */
+
+const UNAVAILABLE = 'Data source not connected'
+
+function unavailable(key: string, label: string, weight: number): TrustBreakdownEntry {
+  return { key, label, score: 0, weight, detail: UNAVAILABLE, available: false }
+}
 
 export const WEIGHTS = {
   reviews: 0.3,
@@ -49,11 +60,13 @@ function reviewScore(shop: Shop): TrustBreakdownEntry {
     score: Math.round(score),
     weight: WEIGHTS.reviews,
     detail: `${weightedAvg.toFixed(1)}★ volume-adjusted across ${totalCount.toLocaleString()} reviews`,
+    available: true,
   }
 }
 
 function bbbScore(shop: Shop): TrustBreakdownEntry {
   const { bbbGrade, bbbAccredited } = shop.signals
+  if (bbbGrade === null) return unavailable('bbb', 'BBB rating', WEIGHTS.bbb)
   let score = BBB_GRADE_SCORES[bbbGrade]
   if (bbbAccredited) score = Math.min(100, score + 5)
   return {
@@ -65,11 +78,14 @@ function bbbScore(shop: Shop): TrustBreakdownEntry {
       bbbGrade === 'NR'
         ? 'Not yet rated by the BBB'
         : `BBB grade ${bbbGrade}${bbbAccredited ? ', accredited business' : ''}`,
+    available: true,
   }
 }
 
 function complaintScore(shop: Shop): TrustBreakdownEntry {
   const { complaints3y, complaintResolutionRate, reviews } = shop.signals
+  if (complaints3y === null || complaintResolutionRate === null)
+    return unavailable('complaints', 'Complaint history', WEIGHTS.complaints)
   const totalReviews = Math.max(reviews.reduce((s, r) => s + r.count, 0), 1)
   // Complaints per 100 reviews approximates complaints relative to customer volume
   const per100 = (complaints3y / totalReviews) * 100
@@ -87,23 +103,28 @@ function complaintScore(shop: Shop): TrustBreakdownEntry {
         : `${complaints3y} complaint${complaints3y === 1 ? '' : 's'} in 3 years, ${Math.round(
             complaintResolutionRate * 100,
           )}% resolved`,
+    available: true,
   }
 }
 
 function longevityScore(shop: Shop, currentYear: number): TrustBreakdownEntry {
-  const years = Math.max(0, currentYear - shop.signals.yearEstablished)
+  const { yearEstablished } = shop.signals
+  if (yearEstablished === null) return unavailable('longevity', 'Years in business', WEIGHTS.longevity)
+  const years = Math.max(0, currentYear - yearEstablished)
   const score = Math.min(100, (years / 25) * 100) // 25+ years = full marks
   return {
     key: 'longevity',
     label: 'Years in business',
     score: Math.round(score),
     weight: WEIGHTS.longevity,
-    detail: `Serving customers since ${shop.signals.yearEstablished} (${years} years)`,
+    detail: `Serving customers since ${yearEstablished} (${years} years)`,
+    available: true,
   }
 }
 
 function certificationScore(shop: Shop): TrustBreakdownEntry {
   const certs = shop.signals.certifications
+  if (certs === null) return unavailable('certs', 'Certifications', WEIGHTS.certs)
   const score = Math.min(100, certs.length * 34)
   return {
     key: 'certs',
@@ -111,20 +132,14 @@ function certificationScore(shop: Shop): TrustBreakdownEntry {
     score: Math.round(score),
     weight: WEIGHTS.certs,
     detail: certs.length ? certs.join(' · ') : 'No industry certifications on file',
+    available: true,
   }
 }
 
 function consistencyScore(shop: Shop): TrustBreakdownEntry {
   const ratings = shop.signals.reviews.map((r) => r.rating)
-  if (ratings.length < 2) {
-    return {
-      key: 'consistency',
-      label: 'Cross-platform consistency',
-      score: 50,
-      weight: WEIGHTS.consistency,
-      detail: 'Only one review source available',
-    }
-  }
+  // Needs at least two review platforms to compare; otherwise not measurable.
+  if (ratings.length < 2) return unavailable('consistency', 'Cross-platform consistency', WEIGHTS.consistency)
   const spread = Math.max(...ratings) - Math.min(...ratings)
   const score = Math.max(0, 100 - spread * 55) // 1.8-star spread → 0
   return {
@@ -136,11 +151,13 @@ function consistencyScore(shop: Shop): TrustBreakdownEntry {
       spread <= 0.3
         ? 'Ratings agree closely across platforms'
         : `${spread.toFixed(1)}★ spread between review platforms`,
+    available: true,
   }
 }
 
 function trendScore(shop: Shop): TrustBreakdownEntry {
   const delta = shop.signals.recentDelta
+  if (delta === null) return unavailable('trend', 'Rating trend', WEIGHTS.trend)
   const score = Math.max(0, Math.min(100, 50 + delta * 80))
   return {
     key: 'trend',
@@ -153,28 +170,33 @@ function trendScore(shop: Shop): TrustBreakdownEntry {
         : delta <= -0.05
           ? `Recent reviews down ${Math.abs(delta).toFixed(1)}★ vs lifetime average`
           : 'Recent reviews steady vs lifetime average',
+    available: true,
   }
 }
 
 function warrantyScore(shop: Shop): TrustBreakdownEntry {
   const months = shop.signals.warrantyMonths
+  if (months === null) return unavailable('warranty', 'Warranty coverage', WEIGHTS.warranty)
   return {
     key: 'warranty',
     label: 'Warranty coverage',
     score: Math.round(Math.min(100, (months / 36) * 100)),
     weight: WEIGHTS.warranty,
     detail: months > 0 ? `${months}-month parts & labor warranty` : 'No posted warranty',
+    available: true,
   }
 }
 
 function licenseScore(shop: Shop): TrustBreakdownEntry {
   const licensed = shop.signals.stateLicensed
+  if (licensed === null) return unavailable('license', 'State licensing', WEIGHTS.license)
   return {
     key: 'license',
     label: 'State licensing',
     score: licensed ? 100 : 25,
     weight: WEIGHTS.license,
     detail: licensed ? 'State-registered repair facility' : 'No state registration on file',
+    available: true,
   }
 }
 
@@ -190,7 +212,12 @@ export function computeTrustScore(shop: Shop, now: Date = new Date()): TrustScor
     licenseScore(shop),
     consistencyScore(shop),
   ]
-  const composite = Math.round(breakdown.reduce((s, e) => s + e.score * e.weight, 0))
+  // Reweight across only the signals whose data is available, so a shop with
+  // fewer connected sources is scored fairly on what we actually know.
+  const available = breakdown.filter((e) => e.available)
+  const totalWeight = available.reduce((s, e) => s + e.weight, 0)
+  const composite =
+    totalWeight > 0 ? Math.round(available.reduce((s, e) => s + e.score * e.weight, 0) / totalWeight) : 0
   const tier =
     composite >= 85 ? 'excellent' : composite >= 70 ? 'good' : composite >= 55 ? 'fair' : 'caution'
   return { composite, tier, breakdown }
