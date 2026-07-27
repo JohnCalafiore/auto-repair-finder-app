@@ -1,0 +1,51 @@
+name: Import state licensing
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Quarterly, after the monthly Overture ingest has refreshed shops
+    - cron: '0 7 2 1,4,7,10 *'
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Download NY DMV repair shop registry
+        run: |
+          curl -sSL -o ny_registry.csv \
+            "https://data.ny.gov/api/views/icjc-x44x/rows.csv?accessType=DOWNLOAD"
+          head -1 ny_registry.csv
+          wc -l ny_registry.csv
+
+      - name: Export NY shops from database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          sudo apt-get install -y -q postgresql-client
+          psql "$SUPABASE_DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, NY, %') to 'shops_export.csv' with (format csv, header true)"
+          wc -l shops_export.csv
+
+      - name: Match registry against shops
+        run: python scripts/import_licensing.py --registry ny_registry.csv --shops shops_export.csv --out matches.csv
+
+      - name: Upsert trust signals
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          psql "$SUPABASE_DB_URL" <<'SQL'
+          create temp table licensing_staging (shop_id text, state_licensed boolean);
+          \copy licensing_staging from 'matches.csv' with (format csv, header true)
+          insert into public.trust_signals (shop_id, state_licensed)
+          select shop_id, state_licensed from licensing_staging
+          on conflict (shop_id) do update set
+            state_licensed = excluded.state_licensed,
+            updated_at = now();
+          select count(*) filter (where state_licensed) as licensed_shops from public.trust_signals;
+          SQL

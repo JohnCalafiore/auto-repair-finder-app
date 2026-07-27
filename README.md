@@ -59,11 +59,15 @@ Supabase project with PostGIS: `shops` (Overture data, GIST-indexed geography), 
 
 GitHub repo secret `SUPABASE_DB_URL` (Postgres connection string) powers the ingest workflow. No secret is ever committed.
 
+### State licensing imports
+
+`.github/workflows/import-licensing.yml` (quarterly + manual dispatch) downloads official state repair-shop registries and marks matching shops `state_licensed` in `trust_signals`, which `/api/shops` serves via the `shops_within` join. Currently covers **New York** (DMV "Vehicle Repair Shops" public records, dataset `icjc-x44x`). Matching is conservative — ZIP + fuzzy business-name match (`scripts/import_licensing.py`); only positive matches are recorded, since a failed fuzzy match is not evidence a real shop is unlicensed. Additional states (e.g. California BAR) can be added as more registry sources are wired into the workflow.
+
 ### Remaining adapters
 
 - **Yelp Fusion** — second review source (enables cross-platform consistency)
 - **BBB partner/licensed data** — grade, accreditation, complaints
-- **State licensing boards** — licensing status into `trust_signals`
+- **More state licensing registries** — CA BAR and others, extending the NY import
 
 Until then those rows show "Data source not connected" for live shops, and the composite reweights across what's available.
 
