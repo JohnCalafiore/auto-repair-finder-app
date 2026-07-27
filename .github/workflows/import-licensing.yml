@@ -17,8 +17,22 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install psql
-        run: sudo apt-get install -y -q postgresql-client
+      - name: Resolve database connection
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          sudo apt-get install -y -q postgresql-client
+          # Supabase's direct DB hostname is IPv6-only and GitHub runners have
+          # no IPv6 — fall back to the IPv4 session pooler when direct fails.
+          DB_URL="$SUPABASE_DB_URL"
+          if ! timeout 15 psql "$DB_URL" -c 'select 1' >/dev/null 2>&1; then
+            echo "Direct connection unreachable; switching to session pooler"
+            PASS="${DB_URL#*://postgres:}"; PASS="${PASS%%@*}"
+            DB_URL="postgresql://postgres.hinzrkaoayxdbhmjlgvk:${PASS}@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+            timeout 15 psql "$DB_URL" -c 'select 1' >/dev/null
+          fi
+          echo "::add-mask::$DB_URL"
+          echo "DB_URL=$DB_URL" >> "$GITHUB_ENV"
 
       - name: Download NY DMV repair shop registry
         run: |
@@ -28,19 +42,15 @@ jobs:
           wc -l ny_registry.csv
 
       - name: Match NY registry
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          psql "$SUPABASE_DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, NY, %') to 'shops_ny.csv' with (format csv, header true)"
+          psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, NY, %') to 'shops_ny.csv' with (format csv, header true)"
           wc -l shops_ny.csv
           python scripts/import_licensing.py --registry ny_registry.csv --shops shops_ny.csv --out matches_ny.csv
 
       - name: Match CA registry (drop-in file, see data/licensing/README.md)
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           if [ -f data/licensing/ca_registry.csv ]; then
-            psql "$SUPABASE_DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, CA, %') to 'shops_ca.csv' with (format csv, header true)"
+            psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, CA, %') to 'shops_ca.csv' with (format csv, header true)"
             wc -l shops_ca.csv
             python scripts/import_licensing.py --registry data/licensing/ca_registry.csv --shops shops_ca.csv --out matches_ca.csv
           else
@@ -48,13 +58,11 @@ jobs:
           fi
 
       - name: Upsert trust signals
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           head -q -n 1 matches_*.csv | head -1 > matches.csv
           tail -q -n +2 matches_*.csv >> matches.csv
           wc -l matches.csv
-          psql "$SUPABASE_DB_URL" <<'SQL'
+          psql "$DB_URL" <<'SQL'
           create temp table licensing_staging (shop_id text, state_licensed boolean);
           \copy licensing_staging from 'matches.csv' with (format csv, header true)
           insert into public.trust_signals (shop_id, state_licensed)
