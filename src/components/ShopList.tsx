@@ -29,7 +29,7 @@ export function ShopList({
             onClick={() => onSelect(s.shop.id)}
           >
             <div className={`score-badge tier-${s.trust.tier}`} title={TIER_LABELS[s.trust.tier]}>
-              <span className="score-badge-num">{s.trust.composite}</span>
+              <span className="score-badge-num">{s.trust.tier === 'unrated' ? '–' : s.trust.composite}</span>
             </div>
             <div className="shop-card-body">
               <div className="shop-card-top">
@@ -52,8 +52,7 @@ export function ShopList({
                 </span>
                 {' · '}
                 {formatHoursToday(s.shop.hours)}
-                {' · '}
-                {'$'.repeat(s.shop.priceLevel)}
+                {s.shop.priceLevel != null && <> {' · '}{'$'.repeat(s.shop.priceLevel)}</>}
                 {s.shop.signals.bbbGrade && s.shop.signals.bbbGrade !== 'NR' && (
                   <> {' · BBB '}{s.shop.signals.bbbGrade}</>
                 )}

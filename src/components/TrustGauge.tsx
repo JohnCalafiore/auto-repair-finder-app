@@ -55,7 +55,7 @@ export function TrustGauge({ score, size = 128 }: { score: TrustScore; size?: nu
         <line x1={needleTail.x} y1={needleTail.y} x2={needleTip.x} y2={needleTip.y} className="gauge-needle" />
         <circle cx={cx} cy={cy} r={4} className="gauge-hub" />
         <text x={cx} y={78} className="gauge-value" textAnchor="middle">
-          {score.composite}
+          {score.tier === 'unrated' ? '–' : score.composite}
         </text>
         <text x={cx} y={88} className="gauge-unit" textAnchor="middle">
           / 100

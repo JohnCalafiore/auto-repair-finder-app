@@ -48,6 +48,7 @@ function volumeAdjustedRating(rating: number, count: number): number {
 
 function reviewScore(shop: Shop): TrustBreakdownEntry {
   const { reviews } = shop.signals
+  if (reviews.length === 0) return unavailable('reviews', 'Customer reviews', WEIGHTS.reviews)
   const totalCount = reviews.reduce((s, r) => s + r.count, 0)
   const weightedAvg =
     reviews.reduce((s, r) => s + volumeAdjustedRating(r.rating, r.count) * r.count, 0) /
@@ -216,8 +217,8 @@ export function computeTrustScore(shop: Shop, now: Date = new Date()): TrustScor
   // fewer connected sources is scored fairly on what we actually know.
   const available = breakdown.filter((e) => e.available)
   const totalWeight = available.reduce((s, e) => s + e.weight, 0)
-  const composite =
-    totalWeight > 0 ? Math.round(available.reduce((s, e) => s + e.score * e.weight, 0) / totalWeight) : 0
+  if (totalWeight === 0) return { composite: 0, tier: 'unrated', breakdown }
+  const composite = Math.round(available.reduce((s, e) => s + e.score * e.weight, 0) / totalWeight)
   const tier =
     composite >= 85 ? 'excellent' : composite >= 70 ? 'good' : composite >= 55 ? 'fair' : 'caution'
   return { composite, tier, breakdown }
@@ -228,4 +229,5 @@ export const TIER_LABELS: Record<TrustScore['tier'], string> = {
   good: 'Trusted',
   fair: 'Mixed record',
   caution: 'Proceed with caution',
+  unrated: 'Not yet rated',
 }

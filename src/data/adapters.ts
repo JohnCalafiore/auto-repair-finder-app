@@ -21,7 +21,7 @@ import { distanceMiles } from '../lib/geo'
  * engine (src/lib/trustScore.ts) is source-agnostic and needs no changes
  * when adapters are added.
  */
-export type DataSource = 'google' | 'demo'
+export type DataSource = 'overture' | 'google' | 'demo'
 
 export interface ShopResult {
   shops: Shop[]
@@ -58,8 +58,12 @@ export class RemotePlacesAdapter implements ShopDataAdapter {
       )
       if (res.ok) {
         const data = (await res.json()) as { source?: string; shops?: Shop[] }
-        if (data.source === 'google' && data.shops && data.shops.length > 0) {
-          return { shops: data.shops, source: 'google' }
+        if (
+          (data.source === 'overture' || data.source === 'google') &&
+          data.shops &&
+          data.shops.length > 0
+        ) {
+          return { shops: data.shops, source: data.source }
         }
       }
     } catch {

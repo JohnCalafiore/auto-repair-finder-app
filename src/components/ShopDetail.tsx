@@ -5,10 +5,12 @@ import { TrustGauge } from './TrustGauge'
 
 export function ShopDetail({
   scored,
+  enriching = false,
   onClose,
   onShowTrustInfo,
 }: {
   scored: ScoredShop
+  enriching?: boolean
   onClose: () => void
   onShowTrustInfo: () => void
 }) {
@@ -33,8 +35,7 @@ export function ShopDetail({
             {' · '}
             {formatHoursToday(shop.hours)}
             {distance != null && <> · <span className="mono-num">{distance.toFixed(1)} mi</span> away</>}
-            {' · '}
-            {'$'.repeat(shop.priceLevel)}
+            {shop.priceLevel != null && <> {' · '}{'$'.repeat(shop.priceLevel)}</>}
           </p>
         </div>
         <TrustGauge score={trust} size={120} />
@@ -70,6 +71,18 @@ export function ShopDetail({
       <section className="detail-section">
         <h3>Review sources</h3>
         <ul className="source-list">
+          {enriching && (
+            <li className="enriching-row">
+              <span>Google</span>
+              <span className="mono-num">Fetching rating…</span>
+            </li>
+          )}
+          {!enriching && shop.signals.reviews.length === 0 && (
+            <li className="enriching-row">
+              <span>Google</span>
+              <span className="mono-num">No rating found</span>
+            </li>
+          )}
           {shop.signals.reviews.map((r) => (
             <li key={r.source}>
               <span>{r.source}</span>
@@ -94,16 +107,20 @@ export function ShopDetail({
 
       <section className="detail-section">
         <h3>Hours</h3>
-        <ul className="hours-list">
-          {shop.hours.map((d, i) => (
-            <li key={i} className={new Date().getDay() === i ? 'hours-today' : ''}>
-              <span>{DAY_NAMES[i]}</span>
-              <span className="mono-num">
-                {d.open && d.close ? `${d.open} – ${d.close}` : 'Closed'}
-              </span>
-            </li>
-          ))}
-        </ul>
+        {shop.hours ? (
+          <ul className="hours-list">
+            {shop.hours.map((d, i) => (
+              <li key={i} className={new Date().getDay() === i ? 'hours-today' : ''}>
+                <span>{DAY_NAMES[i]}</span>
+                <span className="mono-num">
+                  {d.open && d.close ? `${d.open} – ${d.close}` : 'Closed'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="detail-contact">Hours unavailable for this listing — call ahead.</p>
+        )}
       </section>
 
       <section className="detail-section">

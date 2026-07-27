@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Shop, TrustScore } from './types'
-import { dataAdapter } from './data/adapters'
+import { dataAdapter, type DataSource } from './data/adapters'
 import { computeTrustScore } from './lib/trustScore'
 import { distanceMiles, isOpenNow, type LatLng } from './lib/geo'
 import { DEFAULT_FILTERS, FilterPanel, type Filters } from './components/FilterPanel'
@@ -28,7 +28,12 @@ export default function App() {
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
   const [showTrustInfo, setShowTrustInfo] = useState(false)
-  const [dataSource, setDataSource] = useState<'google' | 'demo'>('demo')
+  const [dataSource, setDataSource] = useState<DataSource>('demo')
+  // Google ratings fetched on demand per shop; null rating = looked up, no match
+  const [enrichment, setEnrichment] = useState<Map<string, { rating: number | null; count: number | null }>>(
+    () => new Map(),
+  )
+  const [enrichingId, setEnrichingId] = useState<string | null>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -61,13 +66,28 @@ export default function App() {
 
   const scored = useMemo<ScoredShop[]>(
     () =>
-      shops.map((shop) => ({
-        shop,
-        trust: computeTrustScore(shop),
-        distance: distanceMiles(origin, { lat: shop.lat, lng: shop.lng }),
-        openNow: isOpenNow(shop.hours),
-      })),
-    [shops, origin],
+      shops.map((shop) => {
+        // Merge any on-demand Google rating into the shop's signals so the
+        // trust score recomputes with real review data.
+        const enriched = enrichment.get(shop.id)
+        const effective =
+          enriched?.rating != null && shop.signals.reviews.length === 0
+            ? {
+                ...shop,
+                signals: {
+                  ...shop.signals,
+                  reviews: [{ source: 'Google' as const, rating: enriched.rating, count: enriched.count ?? 0 }],
+                },
+              }
+            : shop
+        return {
+          shop: effective,
+          trust: computeTrustScore(effective),
+          distance: distanceMiles(origin, { lat: shop.lat, lng: shop.lng }),
+          openNow: isOpenNow(shop.hours),
+        }
+      }),
+    [shops, origin, enrichment],
   )
 
   const visible = useMemo(() => {
@@ -112,6 +132,33 @@ export default function App() {
   }, [scored, filters])
 
   const selected = visible.find((s) => s.shop.id === selectedId) ?? null
+
+  // Opening an Overture shop with no ratings triggers a one-time enrichment
+  // lookup (cached server-side, so repeat opens are free).
+  useEffect(() => {
+    if (!selectedId || dataSource !== 'overture') return
+    const shop = shops.find((s) => s.id === selectedId)
+    if (!shop || shop.signals.reviews.length > 0 || enrichment.has(selectedId)) return
+    let cancelled = false
+    setEnrichingId(selectedId)
+    const params = new URLSearchParams({
+      id: shop.id,
+      name: shop.name,
+      lat: String(shop.lat),
+      lng: String(shop.lng),
+    })
+    fetch(`/api/enrich?${params}`)
+      .then((r) => (r.ok ? r.json() : { rating: null, count: null }))
+      .catch(() => ({ rating: null, count: null }))
+      .then((d: { rating: number | null; count: number | null }) => {
+        if (cancelled) return
+        setEnrichment((prev) => new Map(prev).set(shop.id, { rating: d.rating, count: d.count }))
+        setEnrichingId((cur) => (cur === shop.id ? null : cur))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedId, dataSource, shops, enrichment])
 
   const locateMe = () => {
     if (!navigator.geolocation) {
@@ -197,6 +244,7 @@ export default function App() {
           {selected && (
             <ShopDetail
               scored={selected}
+              enriching={enrichingId === selected.shop.id}
               onClose={() => setSelectedId(null)}
               onShowTrustInfo={() => setShowTrustInfo(true)}
             />

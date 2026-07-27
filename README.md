@@ -31,30 +31,49 @@ Star ratings alone are gameable. The composite blends nine independent signals (
 
 The engine lives in `src/lib/trustScore.ts` and is source-agnostic — every component shows its inputs in the UI ("Why this trust score"), so users see the receipts, not just a number. When a signal's data source isn't connected for a shop (for example, BBB data on a Google-only result), that signal is marked "Data source not connected" and the composite is reweighted across the signals that are available, rather than inventing a value.
 
-## Data sources
+## Data architecture
 
-Live shops come from the **Google Places API (New)** through a serverless proxy (`api/shops.ts`) so the API key never reaches the browser. The client talks only to the `ShopDataAdapter` interface (`src/data/adapters.ts`); `RemotePlacesAdapter` calls the proxy, and on any failure — no key configured, network error, empty result — falls back to the bundled demo data (a curated 23-shop Philadelphia set plus a deterministic generator in `src/data/generator.ts`) with a visible "demonstration data" banner.
+Discovery is self-hosted; paid APIs are enrichment only. `/api/shops` tries sources cheapest-first:
 
-### Enabling live Google Places data
+1. **Own database** — Overture Maps places data (~US auto-repair businesses) in **Supabase/PostGIS**, queried by radius (`shops_within`). Free per query; this is what searches hit.
+2. **Google Places (New)** — server-side proxy fallback when the DB is unconfigured or has no coverage.
+3. **Demo data** — bundled Philadelphia seed + deterministic generator (`src/data/generator.ts`), shown with a banner, so the map never breaks.
 
-1. In Google Cloud, create a project, enable **Places API (New)**, and enable billing.
-2. Create an API key (restrict it to Places API (New)).
-3. In Vercel → your project → **Settings → Environment Variables**, add `GOOGLE_PLACES_API_KEY` (Production + Preview). Redeploy.
-4. Smoke-test: `GET /api/shops?lat=39.95&lng=-75.16&radius=5` should return `{"source":"google", ...}`.
+Ratings are fetched **on demand**: opening a shop's detail panel calls `/api/enrich`, which resolves the shop's Google rating once and caches it in the `enrichment` table for 30 days. Cost scales with detail-opens (pennies), not searches. Shops with no connected signals show as "Not yet rated" (gray) rather than being scored on invented data.
 
-The secret is read only from `process.env` at runtime and is never committed.
+### Database
 
-Places supplies name, location, hours, phone, website, Google rating + review count, and price. Service categories and make specialties are inferred heuristically from the business name. The remaining Trust Score signals are populated by adapters not yet built:
+Supabase project with PostGIS: `shops` (Overture data, GIST-indexed geography), `enrichment` (cached ratings incl. negative results), `trust_signals` (BBB/licensing — reserved for future batch imports). RLS is enabled with no anon policies; only serverless functions with the service-role key can read.
 
-- **Yelp Fusion API** — Yelp ratings and review counts (adds cross-platform consistency)
-- **BBB partner/licensed data** — letter grade, accreditation, complaints and resolutions
-- **State licensing boards / Carfax** — licensing, warranty, and additional signals
+### Ingest (Overture → Supabase)
 
-Until those are added, their rows show "Data source not connected" for live shops.
+`.github/workflows/ingest-overture.yml` runs monthly (and on manual dispatch): DuckDB reads the Overture places parquet from public S3, `scripts/ingest_overture.py` filters US auto-repair categories and maps them to the app's taxonomy, and the CSV is upserted via `psql` (Overture GERS ids are stable across releases, so enrichment survives refreshes). Requires the `SUPABASE_DB_URL` repo secret. `scripts/load_seed_from_url.sql` can seed a fresh DB from the committed Philadelphia extract (`public/seed/philly_shops.json`, 1,976 real shops) before the first full run.
+
+### Environment variables (Vercel → Settings → Environment Variables)
+
+| Variable | Purpose |
+| --- | --- |
+| `SUPABASE_URL` | Supabase project URL (shops + enrichment queries) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key, server-side only |
+| `GOOGLE_PLACES_API_KEY` | Ratings enrichment + discovery fallback (optional but recommended) |
+
+GitHub repo secret `SUPABASE_DB_URL` (Postgres connection string) powers the ingest workflow. No secret is ever committed.
+
+### Remaining adapters
+
+- **Yelp Fusion** — second review source (enables cross-platform consistency)
+- **BBB partner/licensed data** — grade, accreditation, complaints
+- **State licensing boards** — licensing status into `trust_signals`
+
+Until then those rows show "Data source not connected" for live shops, and the composite reweights across what's available.
 
 ### Local development
 
-`npm run dev` (plain Vite) has no serverless functions, so it always shows demo data. To exercise the live `/api/shops` proxy locally, use `vercel dev` with `GOOGLE_PLACES_API_KEY` set in a local `.env`.
+`npm run dev` (plain Vite) has no serverless functions, so it always shows demo data. To exercise `/api/shops` and `/api/enrich` locally, use `vercel dev` with the env vars in a local `.env`.
+
+### Scale note
+
+The map currently uses OpenStreetMap's public tile servers, which are not intended for heavy production traffic — before real scale, switch to self-hosted tiles (Protomaps/PMTiles) or a provider like MapTiler.
 
 ## Run it
 
