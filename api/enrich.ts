@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { getSupabase } from './_supabase'
+import { getSupabase } from './_supabase.js'
 
 /**
  * GET /api/enrich?id=&name=&lat=&lng=

@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { fetchPlacesShops } from './_places'
-import { getSupabase, rowToShop, type ShopRow } from './_supabase'
+// Explicit .js extensions: these run as native Node ES modules on Vercel,
+// where extensionless relative imports fail at runtime.
+import { fetchPlacesShops } from './_places.js'
+import { getSupabase, rowToShop, type ShopRow } from './_supabase.js'
 
 /**
  * GET /api/shops?lat=&lng=&radius=
