@@ -17,33 +17,48 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install psql
+        run: sudo apt-get install -y -q postgresql-client
+
       - name: Download NY DMV repair shop registry
         run: |
-          curl -sSL -o ny_registry.csv \
+          curl -sSL -A "Mozilla/5.0 (X11; Linux x86_64) TrueWrench-ingest" -o ny_registry.csv \
             "https://data.ny.gov/api/views/icjc-x44x/rows.csv?accessType=DOWNLOAD"
           head -1 ny_registry.csv
           wc -l ny_registry.csv
 
-      - name: Export NY shops from database
+      - name: Match NY registry
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          sudo apt-get install -y -q postgresql-client
-          psql "$SUPABASE_DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, NY, %') to 'shops_export.csv' with (format csv, header true)"
-          wc -l shops_export.csv
+          psql "$SUPABASE_DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, NY, %') to 'shops_ny.csv' with (format csv, header true)"
+          wc -l shops_ny.csv
+          python scripts/import_licensing.py --registry ny_registry.csv --shops shops_ny.csv --out matches_ny.csv
 
-      - name: Match registry against shops
-        run: python scripts/import_licensing.py --registry ny_registry.csv --shops shops_export.csv --out matches.csv
+      - name: Match CA registry (drop-in file, see data/licensing/README.md)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -f data/licensing/ca_registry.csv ]; then
+            psql "$SUPABASE_DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, CA, %') to 'shops_ca.csv' with (format csv, header true)"
+            wc -l shops_ca.csv
+            python scripts/import_licensing.py --registry data/licensing/ca_registry.csv --shops shops_ca.csv --out matches_ca.csv
+          else
+            echo "No CA registry file present — skipping (see data/licensing/README.md to add it)."
+          fi
 
       - name: Upsert trust signals
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
+          head -q -n 1 matches_*.csv | head -1 > matches.csv
+          tail -q -n +2 matches_*.csv >> matches.csv
+          wc -l matches.csv
           psql "$SUPABASE_DB_URL" <<'SQL'
           create temp table licensing_staging (shop_id text, state_licensed boolean);
           \copy licensing_staging from 'matches.csv' with (format csv, header true)
           insert into public.trust_signals (shop_id, state_licensed)
-          select shop_id, state_licensed from licensing_staging
+          select distinct shop_id, state_licensed from licensing_staging
           on conflict (shop_id) do update set
             state_licensed = excluded.state_licensed,
             updated_at = now();

@@ -61,7 +61,12 @@ GitHub repo secret `SUPABASE_DB_URL` (Postgres connection string) powers the ing
 
 ### State licensing imports
 
-`.github/workflows/import-licensing.yml` (quarterly + manual dispatch) downloads official state repair-shop registries and marks matching shops `state_licensed` in `trust_signals`, which `/api/shops` serves via the `shops_within` join. Currently covers **New York** (DMV "Vehicle Repair Shops" public records, dataset `icjc-x44x`). Matching is conservative — ZIP + fuzzy business-name match (`scripts/import_licensing.py`); only positive matches are recorded, since a failed fuzzy match is not evidence a real shop is unlicensed. Additional states (e.g. California BAR) can be added as more registry sources are wired into the workflow.
+`.github/workflows/import-licensing.yml` (quarterly + manual dispatch) matches official state repair-shop registries against our shops and marks matches `state_licensed` in `trust_signals`, which `/api/shops` serves via the `shops_within` join. Matching is conservative — ZIP + fuzzy business-name match (`scripts/import_licensing.py`); only positive matches are recorded, since a failed fuzzy match is not evidence a real shop is unlicensed.
+
+Coverage (see `data/licensing/README.md` for details and how to add states):
+- **New York** — auto-downloaded each run (DMV public dataset `icjc-x44x`)
+- **California** — drop-in file: BAR publishes no bulk download; obtain the licensee list via a free public records request (bar.ca.gov/public-records) and commit it as `data/licensing/ca_registry.csv`
+- **Colorado** — investigated: the state does not license general repair shops, so there is no registry to import; CO shops keep "Data source not connected"
 
 ### Remaining adapters
 
