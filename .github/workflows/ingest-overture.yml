@@ -23,17 +23,32 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install duckdb
+        run: |
+          pip install duckdb
+          sudo apt-get install -y -q postgresql-client
+
+      - name: Resolve database connection
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          # Supabase's direct DB hostname is IPv6-only and GitHub runners have
+          # no IPv6 — fall back to the IPv4 session pooler when direct fails.
+          DB_URL="$SUPABASE_DB_URL"
+          if ! timeout 15 psql "$DB_URL" -c 'select 1' >/dev/null 2>&1; then
+            echo "Direct connection unreachable; switching to session pooler"
+            PASS="${DB_URL#*://postgres:}"; PASS="${PASS%%@*}"
+            DB_URL="postgresql://postgres.hinzrkaoayxdbhmjlgvk:${PASS}@aws-0-us-east-1.pooler.supabase.com:5432/postgres"
+            timeout 15 psql "$DB_URL" -c 'select 1' >/dev/null
+          fi
+          echo "::add-mask::$DB_URL"
+          echo "DB_URL=$DB_URL" >> "$GITHUB_ENV"
 
       - name: Extract US auto-repair places from Overture
         run: python scripts/ingest_overture.py --release "${{ github.event.inputs.release || '2026-07-22.0' }}" --out shops.csv
 
       - name: Load into Supabase
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
-          sudo apt-get install -y -q postgresql-client
-          psql "$SUPABASE_DB_URL" <<'SQL'
+          psql "$DB_URL" <<'SQL'
           create temp table shops_staging (
             id text, name text, categories text[], address text, phone text,
             website text, lat double precision, lng double precision, specialties text[]
