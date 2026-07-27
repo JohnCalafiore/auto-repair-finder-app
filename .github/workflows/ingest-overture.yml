@@ -34,6 +34,10 @@ jobs:
           # Supabase's direct DB hostname is IPv6-only and GitHub runners have
           # no IPv6 — fall back to the IPv4 session pooler when direct fails.
           DB_URL="$SUPABASE_DB_URL"
+          case "$DB_URL" in *"[YOUR-PASSWORD]"*|*"[your-password]"*)
+            echo "::error::SUPABASE_DB_URL still contains the [YOUR-PASSWORD] placeholder — replace it with the real database password (Supabase → Connect, or reset it under Settings → Database)."
+            exit 1;;
+          esac
           if ! timeout 15 psql "$DB_URL" -c 'select 1' >/dev/null 2>&1; then
             echo "Direct connection unreachable; switching to session pooler"
             PASS="${DB_URL#*://postgres:}"; PASS="${PASS%%@*}"
