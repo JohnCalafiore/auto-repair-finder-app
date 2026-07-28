@@ -51,15 +51,28 @@ jobs:
           wc -l shops_ny.csv
           python scripts/import_licensing.py --registry ny_registry.csv --shops shops_ny.csv --out matches_ny.csv
 
-      - name: Match CA registry (drop-in file, see data/licensing/README.md)
+      - name: Match CT registry (dealers filtered out by license type)
         run: |
-          if [ -f data/licensing/ca_registry.csv ]; then
-            psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, CA, %') to 'shops_ca.csv' with (format csv, header true)"
-            wc -l shops_ca.csv
-            python scripts/import_licensing.py --registry data/licensing/ca_registry.csv --shops shops_ca.csv --out matches_ca.csv
-          else
-            echo "No CA registry file present — skipping (see data/licensing/README.md to add it)."
-          fi
+          curl -sSL -A "Mozilla/5.0 (X11; Linux x86_64) TrueWrench-ingest" -o ct_registry.csv \
+            "https://data.ct.gov/api/views/apne-w8c6/rows.csv?accessType=DOWNLOAD"
+          head -1 ct_registry.csv
+          wc -l ct_registry.csv
+          psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, CT, %') to 'shops_ct.csv' with (format csv, header true)"
+          wc -l shops_ct.csv
+          python scripts/import_licensing.py --registry ct_registry.csv --shops shops_ct.csv --out matches_ct.csv --type-contains repair
+
+      - name: Match drop-in state registries (see data/licensing/README.md)
+        run: |
+          for entry in CA:ca_registry.csv FL:fl_registry.csv MI:mi_registry.csv; do
+            st="${entry%%:*}"; file="data/licensing/${entry#*:}"
+            if [ -f "$file" ]; then
+              psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, ${st}, %') to 'shops_${st}.csv' with (format csv, header true)"
+              wc -l "shops_${st}.csv"
+              python scripts/import_licensing.py --registry "$file" --shops "shops_${st}.csv" --out "matches_${st}.csv"
+            else
+              echo "No ${st} registry file present — skipping."
+            fi
+          done
 
       - name: Upsert trust signals
         run: |
