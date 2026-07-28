@@ -62,23 +62,34 @@ def find_column(headers: list[str], *candidates: str) -> str | None:
     return None
 
 
-def load_registry(path: str):
+def load_registry(path: str, type_contains: str | None = None):
     with open(path, newline='', encoding='utf-8-sig', errors='replace') as f:
         reader = csv.DictReader(f)
         headers = reader.fieldnames or []
-        name_col = find_column(headers, 'facility name', 'business name', 'name')
+        name_col = find_column(headers, 'facility name', 'business name', 'dba', 'name')
         zip_col = find_column(headers, 'zip')
         street_col = find_column(headers, 'street', 'address line 1', 'address')
         status_col = find_column(headers, 'status')
+        type_col = find_column(headers, 'license type', 'business type', 'record type', 'type')
+        type_re = re.compile(type_contains, re.I) if type_contains else None
+        if type_re and not type_col:
+            print('WARNING: --type-contains given but no type column found; keeping all rows')
         if not name_col or not zip_col:
             print(f'ERROR: could not locate name/zip columns in registry headers: {headers}')
             sys.exit(1)
         print(f'registry columns → name: {name_col!r}, zip: {zip_col!r}, street: {street_col!r}, status: {status_col!r}')
         active = re.compile(r'clear|current|active|valid|good standing', re.I)
         skipped_status = 0
+        skipped_type = 0
         by_zip: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
         total = 0
         for row in reader:
+            # Registries that mix license types (CT lists dealers AND
+            # repairers) are narrowed to the requested type.
+            if type_re and type_col:
+                if not type_re.search(row.get(type_col) or ''):
+                    skipped_type += 1
+                    continue
             # When the registry includes a license status, only count
             # active-looking licenses (e.g. DCA uses "Clear").
             if status_col and (row.get(status_col) or '').strip():
@@ -93,7 +104,8 @@ def load_registry(path: str):
             by_zip[z].append((name, street))
             total += 1
         print(f'registry records indexed: {total} across {len(by_zip)} zips'
-              + (f' ({skipped_status} skipped by license status)' if skipped_status else ''))
+              + (f' ({skipped_status} skipped by license status)' if skipped_status else '')
+              + (f' ({skipped_type} skipped by license type)' if skipped_type else ''))
         return by_zip
 
 
@@ -104,9 +116,12 @@ def main() -> None:
     ap.add_argument('--out', default='matches.csv')
     ap.add_argument('--strong', type=float, default=0.82, help='similarity accepted on its own')
     ap.add_argument('--weak', type=float, default=0.6, help='similarity accepted with same street number')
+    ap.add_argument('--type-contains', default=None,
+                    help='only count registry rows whose license-type column matches this regex '
+                         "(e.g. 'repair' for registries that mix dealers and repairers)")
     args = ap.parse_args()
 
-    registry = load_registry(args.registry)
+    registry = load_registry(args.registry, type_contains=args.type_contains)
 
     matched = 0
     considered = 0
