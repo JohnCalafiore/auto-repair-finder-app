@@ -53,8 +53,9 @@ def street_number(text: str) -> str | None:
 
 
 def find_column(headers: list[str], *candidates: str) -> str | None:
-    """Find a header containing any candidate substring (case-insensitive)."""
-    lowered = {h.lower().strip(): h for h in headers}
+    """Find a header containing any candidate substring, case-insensitive and
+    treating underscores as spaces (SODA API exports use snake_case)."""
+    lowered = {re.sub(r'[_\s]+', ' ', h.lower()).strip(): h for h in headers}
     for cand in candidates:
         for low, orig in lowered.items():
             if cand in low:
