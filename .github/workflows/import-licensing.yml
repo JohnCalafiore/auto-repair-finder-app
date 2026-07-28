@@ -40,8 +40,7 @@ jobs:
 
       - name: Download NY DMV repair shop registry
         run: |
-          curl -sSL -A "Mozilla/5.0 (X11; Linux x86_64) TrueWrench-ingest" -o ny_registry.csv \
-            "https://data.ny.gov/api/views/icjc-x44x/rows.csv?accessType=DOWNLOAD"
+          python scripts/fetch_socrata.py --domain data.ny.gov --dataset icjc-x44x --out ny_registry.csv
           head -1 ny_registry.csv
           wc -l ny_registry.csv
 
@@ -53,8 +52,7 @@ jobs:
 
       - name: Match CT registry (dealers filtered out by license type)
         run: |
-          curl -sSL -A "Mozilla/5.0 (X11; Linux x86_64) TrueWrench-ingest" -o ct_registry.csv \
-            "https://data.ct.gov/api/views/apne-w8c6/rows.csv?accessType=DOWNLOAD"
+          python scripts/fetch_socrata.py --domain data.ct.gov --dataset apne-w8c6 --out ct_registry.csv
           head -1 ct_registry.csv
           wc -l ct_registry.csv
           psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, CT, %') to 'shops_ct.csv' with (format csv, header true)"
