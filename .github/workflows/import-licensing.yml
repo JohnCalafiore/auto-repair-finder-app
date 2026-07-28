@@ -61,7 +61,7 @@ jobs:
 
       - name: Match drop-in state registries (see data/licensing/README.md)
         run: |
-          for entry in CA:ca_registry.csv FL:fl_registry.csv MI:mi_registry.csv; do
+          for entry in CA:ca_registry.csv FL:fl_registry.csv MI:mi_registry.csv CT:ct_dropin_registry.csv; do
             st="${entry%%:*}"; file="data/licensing/${entry#*:}"
             if [ -f "$file" ]; then
               psql "$DB_URL" -c "\copy (select id, name, address from public.shops where address like '%, ${st}, %') to 'shops_${st}.csv' with (format csv, header true)"

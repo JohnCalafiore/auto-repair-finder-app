@@ -8,12 +8,16 @@ matches against the shops database. Three kinds of sources:
 - **New York** — DMV "Vehicle Repair Shops Across New York State"
   (data.ny.gov dataset `icjc-x44x`), downloaded fresh on every run.
 - **Connecticut** — DMV "Licensed Automobile Dealers And Repairers"
-  (data.ct.gov dataset `apne-w8c6`, updated nightly). The dataset mixes
-  car dealers with repairers, so the matcher runs with
-  `--type-contains repair` to count only repairer-type licenses. Note:
-  CT licenses are often issued in a corporate name while the shop
-  operates under a DBA, so conservative name matching will miss some
-  legitimately licensed shops.
+  (data.ct.gov dataset `apne-w8c6`). The step is wired with
+  `--type-contains repair` (the dataset mixes dealers and repairers),
+  but as of 2026-07 the published dataset contains only ~138 rows, all
+  dealer-type — a stub of CT's real multi-thousand roster — so CT
+  currently yields no matches. The step is harmless and will pick up
+  data automatically if the state repopulates the feed; alternatively,
+  request the full repairer list from CT DMV and drop it in as
+  `ct_registry.csv` alongside the other drop-in states. Note: CT
+  licenses are often issued in a corporate name while the shop operates
+  under a DBA, so conservative matching will undercount.
 
 ## Drop-in files (states without a public bulk download)
 
