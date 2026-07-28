@@ -68,6 +68,22 @@ NAME_SPECS = [
 ]
 
 
+# Noise filters: Overture's auto categories include businesses that aren't
+# repair shops (towing-only, locksmiths, car washes, junk/salvage) and some
+# mis-geocoded foreign listings. Names matching EXCLUDE are dropped unless
+# they also look like a real repair business (KEEP_OVERRIDE).
+EXCLUDE_NAME = re.compile(
+    r'towing|tow truck|locksmith|key maker|car key|auto key|car wash|junk car'
+    r'|cash for|salvage|wrecking|scrap', re.I)
+KEEP_OVERRIDE = re.compile(
+    r'repair|mechanic|auto care|auto service|service center|garage|body|tire'
+    r'|brake|muffler|transmission|lube|collision|diagnostic', re.I)
+LATIN = re.compile(r'[A-Za-z]')
+# CJK/kana/Hangul in a US listing's primary name almost always marks a
+# mis-geocoded foreign business (e.g. a Taiwanese dealership placed in NYC).
+NON_US_SCRIPT = re.compile(r'[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]')
+
+
 def pg_array(items):
     if not items:
         return None
@@ -111,11 +127,19 @@ def main() -> None:
     with open(args.out, 'w', newline='') as f:
         w = csv.writer(f)
         w.writerow(['id', 'name', 'categories', 'address', 'phone', 'website', 'lat', 'lng', 'specialties'])
+        dropped = 0
         for (pid, name, category, phone, website, addr, locality, region, postcode, lat, lng) in rows:
             if pid in seen or not name:
                 continue
-            seen.add(pid)
             name = name.strip()[:120]
+            # Require a ZIP (mis-geocoded listings usually lack one), a
+            # Latin-script name, and a name that isn't excluded-only.
+            if not postcode or not LATIN.search(name) or NON_US_SCRIPT.search(name) or (
+                EXCLUDE_NAME.search(name) and not KEEP_OVERRIDE.search(name)
+            ):
+                dropped += 1
+                continue
+            seen.add(pid)
             cats = [CATEGORY_MAP[category]]
             for c, rx in NAME_CATS:
                 if c not in cats and rx.search(name):
@@ -126,7 +150,7 @@ def main() -> None:
                 pid, name, pg_array(cats[:3]), address, (phone or '')[:25],
                 (website or '')[:200] or None, round(lat, 6), round(lng, 6), pg_array(specs),
             ])
-    print(f'wrote {args.out} ({len(seen)} rows)')
+    print(f'wrote {args.out} ({len(seen)} rows, {dropped} dropped by noise filters)')
 
 
 if __name__ == '__main__':

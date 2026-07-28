@@ -69,13 +69,22 @@ def load_registry(path: str):
         name_col = find_column(headers, 'facility name', 'business name', 'name')
         zip_col = find_column(headers, 'zip')
         street_col = find_column(headers, 'street', 'address line 1', 'address')
+        status_col = find_column(headers, 'status')
         if not name_col or not zip_col:
             print(f'ERROR: could not locate name/zip columns in registry headers: {headers}')
             sys.exit(1)
-        print(f'registry columns → name: {name_col!r}, zip: {zip_col!r}, street: {street_col!r}')
+        print(f'registry columns → name: {name_col!r}, zip: {zip_col!r}, street: {street_col!r}, status: {status_col!r}')
+        active = re.compile(r'clear|current|active|valid|good standing', re.I)
+        skipped_status = 0
         by_zip: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
         total = 0
         for row in reader:
+            # When the registry includes a license status, only count
+            # active-looking licenses (e.g. DCA uses "Clear").
+            if status_col and (row.get(status_col) or '').strip():
+                if not active.search(row[status_col]):
+                    skipped_status += 1
+                    continue
             z = zip5(row.get(zip_col) or '')
             name = normalize_name(row.get(name_col) or '')
             if not z or not name:
@@ -83,7 +92,8 @@ def load_registry(path: str):
             street = street_number(row.get(street_col) or '') if street_col else None
             by_zip[z].append((name, street))
             total += 1
-        print(f'registry records indexed: {total} across {len(by_zip)} zips')
+        print(f'registry records indexed: {total} across {len(by_zip)} zips'
+              + (f' ({skipped_status} skipped by license status)' if skipped_status else ''))
         return by_zip
 
 
