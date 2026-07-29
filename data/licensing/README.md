@@ -35,11 +35,17 @@ automatically.
   list via the FDACS public records portal:
   https://fdacs.mycusthelp.com/WEBAPP/ (ask for the current Motor
   Vehicle Repair registration list as CSV).
-- **Michigan** — `mi_registry.csv`. The Secretary of State licenses
-  repair facilities and maintains a public facility listing
-  (https://www.michigan.gov/sos/industry-services/repair-facilities);
-  download the current listing there, or request it from the SOS
-  Business Licensing Section, and save as CSV.
+- **Michigan** — `mi_registry.csv`. The Secretary of State registers
+  repair facilities under the Motor Vehicle Service and Repair Act
+  (MCL 257.1301 et seq.) and publishes a "Find a Repair Facility"
+  lookup, but that tool answers one business at a time and has no bulk
+  export. Get the whole roster with a FOIA request to the Michigan
+  Department of State (online form at
+  https://www.michigan.gov/sos/resources/transparency, or by mail to
+  Michigan Department of State, Attn: FOIA Coordinator, P.O. Box 30204,
+  Lansing, MI 48918) asking for the current repair-facility
+  registration list as CSV. Michigan FOIA allows a fee for search and
+  duplication, so state a cost ceiling in the request.
 
 ## States investigated with nothing to import
 
