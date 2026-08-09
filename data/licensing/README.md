@@ -7,6 +7,12 @@ matches against the shops database. Three kinds of sources:
 
 - **New York** — DMV "Vehicle Repair Shops Across New York State"
   (data.ny.gov dataset `icjc-x44x`), downloaded fresh on every run.
+- **California** — BAR's ~44,000 Automotive Repair Dealers, from the DCA
+  "Public Information – Licensee Lists" Box folder (refreshed monthly;
+  see `scripts/fetch_dca_ca.py`). BAR's Aug 2026 PRA response pointed to
+  this publication instead of compiling a custom list. The download
+  writes `ca_registry.csv` at run time; if the feed ever breaks, a
+  committed `ca_registry.csv` in this directory acts as the fallback.
 - **Connecticut** — DMV "Licensed Automobile Dealers And Repairers"
   (data.ct.gov dataset `apne-w8c6`). The step is wired with
   `--type-contains repair` (the dataset mixes dealers and repairers),
@@ -26,20 +32,22 @@ column layout works as long as it includes a business/facility name and
 a ZIP; license-status columns (Active/Clear/etc.) are respected
 automatically.
 
-- **California** — `ca_registry.csv`. The Bureau of Automotive Repair
-  licenses ~35,000 Automotive Repair Dealers but publishes no bulk file.
-  Free public records request: https://www.bar.ca.gov/public-records
-  (ask for the current ARD licensee list as CSV).
 - **Florida** — `fl_registry.csv`. FDACS registers all paid repair shops
   under the Motor Vehicle Repair Act. Request the current registration
   list via the FDACS public records portal:
   https://fdacs.mycusthelp.com/WEBAPP/ (ask for the current Motor
   Vehicle Repair registration list as CSV).
-- **Michigan** — `mi_registry.csv`. The Secretary of State licenses
-  repair facilities and maintains a public facility listing
-  (https://www.michigan.gov/sos/industry-services/repair-facilities);
-  download the current listing there, or request it from the SOS
-  Business Licensing Section, and save as CSV.
+- **Michigan** — `mi_registry.csv`. The Secretary of State registers
+  repair facilities under the Motor Vehicle Service and Repair Act
+  (MCL 257.1301 et seq.) and publishes a "Find a Repair Facility"
+  lookup, but that tool answers one business at a time and has no bulk
+  export. Get the whole roster with a FOIA request to the Michigan
+  Department of State (online form at
+  https://www.michigan.gov/sos/resources/transparency, or by mail to
+  Michigan Department of State, Attn: FOIA Coordinator, P.O. Box 30204,
+  Lansing, MI 48918) asking for the current repair-facility
+  registration list as CSV. Michigan FOIA allows a fee for search and
+  duplication, so state a cost ceiling in the request.
 
 ## States investigated with nothing to import
 
