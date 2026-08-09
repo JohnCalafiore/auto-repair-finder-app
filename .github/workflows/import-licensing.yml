@@ -59,6 +59,17 @@ jobs:
           wc -l shops_ct.csv
           python scripts/import_licensing.py --registry ct_registry.csv --shops shops_ct.csv --out matches_ct.csv --type-contains repair
 
+      - name: Download California ARD registry (DCA licensee lists)
+        run: |
+          # BAR's PRA response points to DCA's monthly Box publication; see
+          # scripts/fetch_dca_ca.py. On failure, a committed
+          # data/licensing/ca_registry.csv (if any) is used by the next step.
+          if python scripts/fetch_dca_ca.py --out data/licensing/ca_registry.csv; then
+            head -1 data/licensing/ca_registry.csv
+          else
+            echo "::warning::CA download failed — using committed ca_registry.csv if present."
+          fi
+
       - name: Match drop-in state registries (see data/licensing/README.md)
         run: |
           for entry in CA:ca_registry.csv FL:fl_registry.csv MI:mi_registry.csv CT:ct_dropin_registry.csv; do
