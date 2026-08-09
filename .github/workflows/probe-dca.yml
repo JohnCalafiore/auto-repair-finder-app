@@ -1,6 +1,6 @@
 # TEMPORARY probe — removed once the CA download URL is confirmed.
-# The DCA licensee-lists page embeds a public Box folder; this walks it
-# via Box's shared-link token API to find the BAR / ARD list file.
+# DCA's licensee-lists page exposes a public Box token endpoint
+# (www.dca.ca.gov/boxToken/getToken) and root folder 66089580694.
 name: Probe DCA licensee lists (temporary)
 
 on:
@@ -12,57 +12,65 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Inline Box config on the DCA page
-        run: |
-          curl -sSL -A "Mozilla/5.0" "https://www.dca.ca.gov/consumers/public_info/index.shtml" -o index.html
-          grep -inoE '.{0,200}(box|folder)[^<]{0,200}' index.html | grep -viE 'boxcdn|checkbox' | head -30 || true
-      - name: Walk the shared Box folder
+      - name: Walk DCA Box folder via DCA token endpoint
         run: |
           python3 - <<'EOF'
-          import json, urllib.request
+          import csv, io, json, urllib.request
 
-          SHARE = "https://dca.box.com/s/oss6hf8jys2bmgxqd2gdz7w4oepm2il9"
+          UA = {"User-Agent": "Mozilla/5.0"}
 
-          def post(url, body):
-              req = urllib.request.Request(url, data=json.dumps(body).encode(),
-                  headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
-              with urllib.request.urlopen(req, timeout=30) as r:
-                  return json.load(r)
+          def get(url, tok=None, raw=False):
+              h = dict(UA)
+              if tok:
+                  h["Authorization"] = "Bearer " + tok
+              req = urllib.request.Request(url, headers=h)
+              with urllib.request.urlopen(req, timeout=60) as r:
+                  return r.read() if raw else json.load(r)
 
-          def get(url, token):
-              req = urllib.request.Request(url, headers={
-                  "Authorization": f"Bearer {token}",
-                  "BoxApi": f"shared_link={SHARE}",
-                  "User-Agent": "Mozilla/5.0"})
-              with urllib.request.urlopen(req, timeout=30) as r:
-                  return json.load(r)
+          t = get("https://www.dca.ca.gov/boxToken/getToken")
+          print("token response keys:", list(t) if isinstance(t, dict) else type(t))
+          tok = t.get("accessToken") or t.get("access_token") or t.get("token")
+          assert tok, t
 
-          tok = None
-          for ep in ("https://dca.app.box.com/app-api/enduserapp/elements/tokens",
-                     "https://app.box.com/app-api/enduserapp/elements/tokens"):
-              try:
-                  resp = post(ep, {"shared_link": SHARE})
-                  print("token endpoint OK:", ep, json.dumps(resp)[:300])
-                  tok = resp.get("accessToken") or (resp[0]["token"] if isinstance(resp, list) else None)
-                  if tok:
-                      break
-              except Exception as e:
-                  print("token endpoint failed:", ep, e)
-          if not tok:
-              raise SystemExit("no token")
+          ROOT = "66089580694"
+          items = get(f"https://api.box.com/2.0/folders/{ROOT}/items?limit=1000", tok)
+          print(f"== root: {items['total_count']} items ==")
+          bar = None
+          for it in items["entries"]:
+              print(f"{it['type']:6} {it['id']:>14} {it['name']}")
+              if it["type"] == "folder" and ("automotive" in it["name"].lower() or it["name"].lower().strip() in ("bar", "bureau of automotive repair")):
+                  bar = it
+          assert bar, "no BAR folder found"
 
-          root = get("https://api.box.com/2.0/shared_items", tok)
-          print("ROOT:", root["type"], root["id"], root.get("name"))
+          print(f"== BAR folder: {bar['name']} ({bar['id']}) ==")
+          sub = get(f"https://api.box.com/2.0/folders/{bar['id']}/items?limit=1000", tok)
+          files = []
+          for it in sub["entries"]:
+              print(f"{it['type']:6} {it['id']:>14} {it['name']}")
+              if it["type"] == "file":
+                  files.append(it)
+              elif it["type"] == "folder":
+                  s2 = get(f"https://api.box.com/2.0/folders/{it['id']}/items?limit=1000", tok)
+                  for it2 in s2["entries"]:
+                      print(f"  {it2['type']:6} {it2['id']:>14} {it['name']}/{it2['name']}")
+                      if it2["type"] == "file":
+                          files.append(it2)
 
-          def walk(fid, depth=0, path=""):
-              items = get(f"https://api.box.com/2.0/folders/{fid}/items?limit=1000", tok)
-              for it in items["entries"]:
-                  print(f"{'  '*depth}{it['type']:6} {it['id']:>14} {path}/{it['name']}")
-                  # Only descend into automotive-ish folders to keep output small
-                  if it["type"] == "folder" and depth < 1 and (
-                      depth == 0 and any(k in it["name"].lower() for k in ("automotive", "bar", "repair"))
-                  ):
-                      walk(it["id"], depth + 1, f"{path}/{it['name']}")
-
-          walk(root["id"])
+          # Preview the most ARD-looking file
+          pick = None
+          for f in files:
+              n = f["name"].lower()
+              if "ard" in n or "repair" in n or "dealer" in n:
+                  pick = f
+                  break
+          pick = pick or (files[0] if files else None)
+          assert pick, "no files"
+          print(f"== preview: {pick['name']} ({pick['id']}) ==")
+          raw = get(f"https://api.box.com/2.0/files/{pick['id']}/content", tok, raw=True)
+          print("bytes:", len(raw))
+          text = raw.decode("utf-8", "replace")
+          rows = list(csv.reader(io.StringIO(text[:20000])))
+          for r in rows[:5]:
+              print(r)
+          print("approx rows:", text.count("\n"))
           EOF
