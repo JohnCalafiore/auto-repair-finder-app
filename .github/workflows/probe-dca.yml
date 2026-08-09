@@ -1,7 +1,6 @@
 # TEMPORARY probe — removed once the CA download URL is confirmed.
-# ca.gov is unreachable from the dev sandbox, so this runs the discovery
-# from an Actions runner instead: list what DCA actually publishes on the
-# licensee-lists page BAR's PRA response pointed to.
+# The DCA licensee-lists page embeds a public Box folder; this walks it
+# via Box's shared-link token API to find the BAR / ARD list file.
 name: Probe DCA licensee lists (temporary)
 
 on:
@@ -13,18 +12,57 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch DCA public_info index
+      - name: Inline Box config on the DCA page
         run: |
           curl -sSL -A "Mozilla/5.0" "https://www.dca.ca.gov/consumers/public_info/index.shtml" -o index.html
-          echo "== bytes: $(wc -c < index.html)"
-          echo "== all links =="
-          grep -oiE '(href|src)="[^"]*"' index.html | sort -u
-      - name: Look for BAR folder
+          grep -inoE '.{0,200}(box|folder)[^<]{0,200}' index.html | grep -viE 'boxcdn|checkbox' | head -30 || true
+      - name: Walk the shared Box folder
         run: |
-          for u in \
-            "https://www.dca.ca.gov/consumers/public_info/bar.shtml" \
-            "https://www.dca.ca.gov/webapps/bar/" \
-            "https://www.dca.ca.gov/data/index.shtml"; do
-            echo "===== $u ====="
-            curl -sSL -A "Mozilla/5.0" "$u" | grep -oiE '(href|src)="[^"]*"' | sort -u || true
-          done
+          python3 - <<'EOF'
+          import json, urllib.request
+
+          SHARE = "https://dca.box.com/s/oss6hf8jys2bmgxqd2gdz7w4oepm2il9"
+
+          def post(url, body):
+              req = urllib.request.Request(url, data=json.dumps(body).encode(),
+                  headers={"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+
+          def get(url, token):
+              req = urllib.request.Request(url, headers={
+                  "Authorization": f"Bearer {token}",
+                  "BoxApi": f"shared_link={SHARE}",
+                  "User-Agent": "Mozilla/5.0"})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+
+          tok = None
+          for ep in ("https://dca.app.box.com/app-api/enduserapp/elements/tokens",
+                     "https://app.box.com/app-api/enduserapp/elements/tokens"):
+              try:
+                  resp = post(ep, {"shared_link": SHARE})
+                  print("token endpoint OK:", ep, json.dumps(resp)[:300])
+                  tok = resp.get("accessToken") or (resp[0]["token"] if isinstance(resp, list) else None)
+                  if tok:
+                      break
+              except Exception as e:
+                  print("token endpoint failed:", ep, e)
+          if not tok:
+              raise SystemExit("no token")
+
+          root = get("https://api.box.com/2.0/shared_items", tok)
+          print("ROOT:", root["type"], root["id"], root.get("name"))
+
+          def walk(fid, depth=0, path=""):
+              items = get(f"https://api.box.com/2.0/folders/{fid}/items?limit=1000", tok)
+              for it in items["entries"]:
+                  print(f"{'  '*depth}{it['type']:6} {it['id']:>14} {path}/{it['name']}")
+                  # Only descend into automotive-ish folders to keep output small
+                  if it["type"] == "folder" and depth < 1 and (
+                      depth == 0 and any(k in it["name"].lower() for k in ("automotive", "bar", "repair"))
+                  ):
+                      walk(it["id"], depth + 1, f"{path}/{it['name']}")
+
+          walk(root["id"])
+          EOF
