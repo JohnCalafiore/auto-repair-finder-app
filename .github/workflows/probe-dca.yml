@@ -1,0 +1,30 @@
+# TEMPORARY probe — removed once the CA download URL is confirmed.
+# ca.gov is unreachable from the dev sandbox, so this runs the discovery
+# from an Actions runner instead: list what DCA actually publishes on the
+# licensee-lists page BAR's PRA response pointed to.
+name: Probe DCA licensee lists (temporary)
+
+on:
+  push:
+    branches: [claude/auto-repair-shop-search-clee0o]
+    paths: ['.github/workflows/probe-dca.yml']
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch DCA public_info index
+        run: |
+          curl -sSL -A "Mozilla/5.0" "https://www.dca.ca.gov/consumers/public_info/index.shtml" -o index.html
+          echo "== bytes: $(wc -c < index.html)"
+          echo "== all links =="
+          grep -oiE '(href|src)="[^"]*"' index.html | sort -u
+      - name: Look for BAR folder
+        run: |
+          for u in \
+            "https://www.dca.ca.gov/consumers/public_info/bar.shtml" \
+            "https://www.dca.ca.gov/webapps/bar/" \
+            "https://www.dca.ca.gov/data/index.shtml"; do
+            echo "===== $u ====="
+            curl -sSL -A "Mozilla/5.0" "$u" | grep -oiE '(href|src)="[^"]*"' | sort -u || true
+          done
