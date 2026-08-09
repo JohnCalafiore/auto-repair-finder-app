@@ -27,10 +27,14 @@ jobs:
               with urllib.request.urlopen(req, timeout=60) as r:
                   return r.read() if raw else json.load(r)
 
-          t = get("https://www.dca.ca.gov/boxToken/getToken")
-          print("token response keys:", list(t) if isinstance(t, dict) else type(t))
-          tok = t.get("accessToken") or t.get("access_token") or t.get("token")
-          assert tok, t
+          raw = get("https://www.dca.ca.gov/boxToken/getToken", raw=True).decode().strip()
+          print("token response head:", raw[:40], "len:", len(raw))
+          try:
+              t = json.loads(raw)
+              tok = t.get("accessToken") or t.get("access_token") or t.get("token") if isinstance(t, dict) else str(t)
+          except json.JSONDecodeError:
+              tok = raw.strip('"')
+          assert tok and len(tok) > 10
 
           ROOT = "66089580694"
           items = get(f"https://api.box.com/2.0/folders/{ROOT}/items?limit=1000", tok)
