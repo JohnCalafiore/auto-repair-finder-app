@@ -1,6 +1,4 @@
 # TEMPORARY probe — removed once the CA download URL is confirmed.
-# DCA's licensee-lists page exposes a public Box token endpoint
-# (www.dca.ca.gov/boxToken/getToken) and root folder 66089580694.
 name: Probe DCA licensee lists (temporary)
 
 on:
@@ -12,69 +10,39 @@ jobs:
   probe:
     runs-on: ubuntu-latest
     steps:
-      - name: Walk DCA Box folder via DCA token endpoint
+      - name: Inspect AutomotiveRepair_Data00.xls
         run: |
+          pip install --quiet xlrd openpyxl pandas
           python3 - <<'EOF'
-          import csv, io, json, urllib.request
-
-          UA = {"User-Agent": "Mozilla/5.0"}
+          import json, urllib.request
 
           def get(url, tok=None, raw=False):
-              h = dict(UA)
+              h = {"User-Agent": "Mozilla/5.0"}
               if tok:
                   h["Authorization"] = "Bearer " + tok
               req = urllib.request.Request(url, headers=h)
-              with urllib.request.urlopen(req, timeout=60) as r:
+              with urllib.request.urlopen(req, timeout=120) as r:
                   return r.read() if raw else json.load(r)
 
-          raw = get("https://www.dca.ca.gov/boxToken/getToken", raw=True).decode().strip()
-          print("token response head:", raw[:40], "len:", len(raw))
-          try:
-              t = json.loads(raw)
-              tok = t.get("accessToken") or t.get("access_token") or t.get("token") if isinstance(t, dict) else str(t)
-          except json.JSONDecodeError:
-              tok = raw.strip('"')
-          assert tok and len(tok) > 10
+          tok = get("https://www.dca.ca.gov/boxToken/getToken", raw=True).decode().strip().strip('"')
+          data = get("https://api.box.com/2.0/files/2383114823828/content", tok, raw=True)
+          print("bytes:", len(data))
+          print("magic:", data[:16])
 
-          ROOT = "66089580694"
-          items = get(f"https://api.box.com/2.0/folders/{ROOT}/items?limit=1000", tok)
-          print(f"== root: {items['total_count']} items ==")
-          bar = None
-          for it in items["entries"]:
-              print(f"{it['type']:6} {it['id']:>14} {it['name']}")
-              if it["type"] == "folder" and ("automotive" in it["name"].lower() or it["name"].lower().strip() in ("bar", "bureau of automotive repair")):
-                  bar = it
-          assert bar, "no BAR folder found"
-
-          print(f"== BAR folder: {bar['name']} ({bar['id']}) ==")
-          sub = get(f"https://api.box.com/2.0/folders/{bar['id']}/items?limit=1000", tok)
-          files = []
-          for it in sub["entries"]:
-              print(f"{it['type']:6} {it['id']:>14} {it['name']}")
-              if it["type"] == "file":
-                  files.append(it)
-              elif it["type"] == "folder":
-                  s2 = get(f"https://api.box.com/2.0/folders/{it['id']}/items?limit=1000", tok)
-                  for it2 in s2["entries"]:
-                      print(f"  {it2['type']:6} {it2['id']:>14} {it['name']}/{it2['name']}")
-                      if it2["type"] == "file":
-                          files.append(it2)
-
-          # Preview the most ARD-looking file
-          pick = None
-          for f in files:
-              n = f["name"].lower()
-              if "ard" in n or "repair" in n or "dealer" in n:
-                  pick = f
-                  break
-          pick = pick or (files[0] if files else None)
-          assert pick, "no files"
-          print(f"== preview: {pick['name']} ({pick['id']}) ==")
-          raw = get(f"https://api.box.com/2.0/files/{pick['id']}/content", tok, raw=True)
-          print("bytes:", len(raw))
-          text = raw.decode("utf-8", "replace")
-          rows = list(csv.reader(io.StringIO(text[:20000])))
-          for r in rows[:5]:
-              print(r)
-          print("approx rows:", text.count("\n"))
+          open("data00.xls", "wb").write(data)
+          if data[:8] == b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
+              import pandas as pd
+              df = pd.read_excel("data00.xls")
+              print("SHEET rows:", len(df))
+              print("columns:", list(df.columns))
+              print(df.head(3).to_string())
+              # distribution of license type + status columns if present
+              for c in df.columns:
+                  lc = str(c).lower()
+                  if "type" in lc or "status" in lc:
+                      print(f"-- {c} --")
+                      print(df[c].value_counts().head(12).to_string())
+          else:
+              text = data[:5000].decode("utf-8", "replace")
+              print(repr(text[:2000]))
           EOF
