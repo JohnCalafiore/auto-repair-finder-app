@@ -1,98 +1,139 @@
-# TrueWrench — Auto Repair Shop Finder
+# TrueWrench
 
-Find auto repair shops on a map and judge them by more than star ratings. Every shop gets a composite **Trust Score (0–100)** that blends customer reviews with Better Business Bureau data and other business signals.
+Find an auto repair shop you can actually trust — not just one with the most stars.
 
-## Features
+TrueWrench is a map-based directory of US auto repair shops. Every shop gets a **Trust Score (0–100)** that blends customer reviews with harder-to-game signals: state licensing, Better Business Bureau grade, complaint history, years in business, certifications, warranty, and rating trend. When a signal's data source isn't connected for a shop, the score says so and reweights across what's real — it never invents a number about a named business.
 
-- **Interactive map** (Leaflet + OpenStreetMap — no API key required) with score-colored pins, synced to the results list
-- **Service-type filters**: General Repair, Body Shop, Speed & Performance, Oil Change & Lube, Tires & Wheels, Transmission, Brakes & Suspension, Exhaust & Muffler, Auto Electrical, Inspection & Emissions
-- **Trust filters**: minimum trust score, distance radius, open now, BBB-accredited only, certifications (ASE, AAA, I-CAR Gold, NAPA AutoCare)
-- **Vehicle make filter** using compact corporate families (Toyota/Lexus, Honda/Acura, Nissan/Infiniti, Dodge/RAM/Jeep, Audi/VW/Porsche, …) grouped by region: specialists in the chosen family rank first, all-make generalists stay included, and shops with other specialties are excluded
-- **Search** across names, addresses, and specialties; sort by trust, distance, or review volume
-- **"Use my location"** geolocation that recenters the map and refreshes results around you immediately, with clear feedback when location access is blocked
-- **"Search this area"** button that appears when you pan or zoom away from the last searched area
-- **Shop detail panel** with a dashboard-style trust gauge, full score breakdown, per-platform ratings, BBB grade, hours, and contact info
+Live at **[truewrench.vercel.app](https://truewrench.vercel.app)**.
+
+![TrueWrench: filters and ranked list on the left, score-colored map pins in the center, and a shop's full trust-score breakdown on the right](docs/screenshot.png)
+
+> **About this screenshot:** it shows the bundled **demo dataset** — hand-written Philadelphia sample shops with illustrative BBB, warranty, and certification values, flagged by the banner at the top. Against the live database, most of those breakdown rows currently read "Data source not connected" (see [What's unfinished](#whats-unfinished)). Map tiles are blank because the capture ran in a sandbox without tile access.
+
+## What it does
+
+- **Search by area** — radius search around any point, "Use my location," and a "Search this area" button when you pan away
+- **Filter** by service type (body, tires, oil, transmission, brakes, exhaust, electrical, inspection, performance), minimum trust score, distance, open now, certifications, and **vehicle make** (grouped into families like Honda/Acura or Audi/VW/Porsche — specialists rank first, generalists stay in)
+- **Rank** by trust score, distance, or review volume
+- **Explain** — every shop's detail panel shows each signal, its weight, its inputs, and whether its source is connected. "What's the trust score?" opens an in-page explainer.
 
 ## The Trust Score
 
-Star ratings alone are gameable. The composite blends nine independent signals (weights in `src/lib/trustScore.ts`, documented in-app via the "What's the trust score?" window):
+Star ratings are gameable and incomplete. The composite in [`src/lib/trustScore.ts`](src/lib/trustScore.ts) blends nine independent signals, each normalized to 0–100:
 
 | Signal | Weight | What it measures |
 | --- | --- | --- |
-| Customer reviews | 30% | Volume-adjusted average across Google, Yelp, and Carfax (a 5.0 from 4 reviews can't beat a 4.7 from 900) |
-| BBB rating | 20% | Letter grade A+–F, plus accreditation bonus |
-| Complaint history | 12% | BBB complaints relative to customer volume, and whether the shop resolves them |
+| Customer reviews | 30% | Volume-adjusted average across platforms. Bayesian shrinkage toward a 3.6★ prior with 25 pseudo-reviews, so a 5.0 from 4 reviews can't beat a 4.7 from 900. |
+| BBB rating | 20% | Letter grade A+ (100) through F (0); "not rated" is neutral (50); +5 for accreditation |
+| Complaint history | 12% | BBB complaints relative to review volume, and resolution rate |
 | Years in business | 8% | Longevity as a proxy for repeat customers |
 | Certifications | 8% | ASE, AAA Approved, I-CAR Gold, NAPA AutoCare, BBB accreditation |
-| Rating trend | 6% | Recent ~12-month review average vs lifetime (catches decline under new ownership) |
+| Rating trend | 6% | Recent ~12-month average vs lifetime — catches decline under new ownership |
 | Warranty coverage | 6% | Length of the posted parts & labor warranty |
-| State licensing | 6% | Registered/licensed repair facility with the state |
-| Cross-platform consistency | 4% | Whether ratings agree between platforms (big spreads suggest manipulation) |
+| State licensing | 6% | Registered repair facility with the state |
+| Cross-platform consistency | 4% | Whether ratings agree across platforms; big spreads suggest manipulation |
 
-The engine lives in `src/lib/trustScore.ts` and is source-agnostic — every component shows its inputs in the UI ("Why this trust score"), so users see the receipts, not just a number. When a signal's data source isn't connected for a shop (for example, BBB data on a Google-only result), that signal is marked "Data source not connected" and the composite is reweighted across the signals that are available, rather than inventing a value.
+**The honesty rule.** Each signal is nullable. A `null` means "this source isn't connected for this shop," and the signal is dropped from the composite with `available: false`. The remaining signals are reweighted to sum to 100%:
+
+```ts
+const available = breakdown.filter((e) => e.available)
+const totalWeight = available.reduce((s, e) => s + e.weight, 0)
+if (totalWeight === 0) return { composite: 0, tier: 'unrated', breakdown }
+const composite = Math.round(
+  available.reduce((s, e) => s + e.score * e.weight, 0) / totalWeight,
+)
+```
+
+A shop with no connected signals shows as gray **"Not yet rated"** rather than being scored on invented data. The engine is source-agnostic — new data feeds just fill in `TrustSignals` fields in [`src/types.ts`](src/types.ts).
 
 ## Data architecture
 
-Discovery is self-hosted; paid APIs are enrichment only. `/api/shops` tries sources cheapest-first:
+Discovery is self-hosted; paid APIs are enrichment only. This is what keeps costs flat at scale (per-search Google Places calls would run thousands of dollars a month at modest traffic).
 
-1. **Own database** — Overture Maps places data (~US auto-repair businesses) in **Supabase/PostGIS**, queried by radius (`shops_within`). Free per query; this is what searches hit.
-2. **Google Places (New)** — server-side proxy fallback when the DB is unconfigured or has no coverage.
-3. **Demo data** — bundled Philadelphia seed + deterministic generator (`src/data/generator.ts`), shown with a banner, so the map never breaks.
+```
+Browser ──► /api/shops ──► 1. Supabase/PostGIS (Overture Maps data)   free per query
+                           2. Google Places proxy                     fallback only
+                           3. 503 → client shows bundled demo data
+        ──► /api/enrich ─► Google rating for ONE shop, on detail-open, cached 30 days
+```
 
-Ratings are fetched **on demand**: opening a shop's detail panel calls `/api/enrich`, which resolves the shop's Google rating once and caches it in the `enrichment` table for 30 days. Cost scales with detail-opens (pennies), not searches. Shops with no connected signals show as "Not yet rated" (gray) rather than being scored on invented data.
+### PostGIS radius search
 
-### Database
+The `shops` table holds ~334,000 US auto-repair businesses extracted from [Overture Maps](https://overturemaps.org/) places data (CDLA-Permissive licensed; Overture's stable GERS ids survive monthly refreshes). Location is a generated `geography` column with a GIST index:
 
-Supabase project with PostGIS: `shops` (Overture data, GIST-indexed geography), `enrichment` (cached ratings incl. negative results), `trust_signals` (BBB/licensing — reserved for future batch imports). RLS is enabled with no anon policies; only serverless functions with the service-role key can read.
+```sql
+geog geography(point, 4326) generated always as
+  (st_setsrid(st_makepoint(lng, lat), 4326)::geography) stored;
+create index shops_geog_gist on public.shops using gist (geog);
+```
 
-### Ingest (Overture → Supabase)
+Searches call one SQL function, `shops_within(lat, lng, radius_m)`, which filters with `ST_DWithin` (index-backed), orders by the `<->` distance operator, joins `trust_signals`, and returns the 50 nearest:
 
-`.github/workflows/ingest-overture.yml` runs monthly (and on manual dispatch): DuckDB reads the Overture places parquet from public S3, `scripts/ingest_overture.py` filters US auto-repair categories and maps them to the app's taxonomy, and the CSV is upserted via `psql` (Overture GERS ids are stable across releases, so enrichment survives refreshes). Requires the `SUPABASE_DB_URL` repo secret. `scripts/load_seed_from_url.sql` can seed a fresh DB from the committed Philadelphia extract (`public/seed/philly_shops.json`, 1,976 real shops) before the first full run.
+```sql
+select s.*, ts.state_licensed, ts.bbb_grade, ...
+from public.shops s
+left join public.trust_signals ts on ts.shop_id = s.id
+where st_dwithin(s.geog, st_setsrid(st_makepoint(in_lng, in_lat), 4326)::geography, radius_m)
+order by s.geog <-> st_setsrid(st_makepoint(in_lng, in_lat), 4326)::geography
+limit 50;
+```
 
-### Environment variables (Vercel → Settings → Environment Variables)
+Row Level Security is enabled on every table with **no policies** — the anon key can't read anything. Only the serverless functions, holding the service-role key, can query.
 
-| Variable | Purpose |
-| --- | --- |
-| `SUPABASE_URL` | Supabase project URL (shops + enrichment queries) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key, server-side only |
-| `GOOGLE_PLACES_API_KEY` | Ratings enrichment + discovery fallback (optional but recommended) |
+### Tables
 
-GitHub repo secret `SUPABASE_DB_URL` (Postgres connection string) powers the ingest workflow. No secret is ever committed.
+| Table | Holds | State |
+| --- | --- | --- |
+| `shops` | Overture discovery data: name, categories, address, phone, hours, specialties, location | Populated (~334k rows) |
+| `trust_signals` | Per-shop licensing/BBB/complaint columns | `state_licensed` populated for NY + CA (~17.8k shops); BBB and complaint columns exist but are empty |
+| `enrichment` | Cached Google rating + count per shop, 30-day TTL, negative results included | Empty until a Google key is configured |
 
-### State licensing imports
+### Pipelines (GitHub Actions)
 
-`.github/workflows/import-licensing.yml` (quarterly + manual dispatch) matches official state repair-shop registries against our shops and marks matches `state_licensed` in `trust_signals`, which `/api/shops` serves via the `shops_within` join. Matching is conservative — ZIP + fuzzy business-name match (`scripts/import_licensing.py`); only positive matches are recorded, since a failed fuzzy match is not evidence a real shop is unlicensed.
+- **`ingest-overture.yml`** — monthly. DuckDB reads Overture's places GeoParquet from public S3; [`scripts/ingest_overture.py`](scripts/ingest_overture.py) filters US auto-repair categories, maps them to the app's taxonomy, drops noise (towing, car washes, salvage, mis-geocoded foreign listings), and `psql` upserts the CSV.
+- **`import-licensing.yml`** — quarterly. Matches official state repair-shop registries against `shops` and marks `state_licensed = true`. Matching is conservative (ZIP + fuzzy business name, [`scripts/import_licensing.py`](scripts/import_licensing.py)); only positive matches are written, because a failed fuzzy match is not evidence a shop is unlicensed. Coverage and how to add states: [`data/licensing/README.md`](data/licensing/README.md).
+  - **New York** — auto-downloaded from the DMV open dataset
+  - **California** — auto-downloaded from the DCA licensee lists (~44k Automotive Repair Dealers)
+  - **Florida, Michigan** — drop-in slots awaiting public-records files
+  - **Connecticut** — wired, but the state's published dataset is a stub
+  - **Colorado, Texas** — no statewide repair-shop license exists
 
-Coverage (see `data/licensing/README.md` for details and how to add states):
-- **New York** — auto-downloaded each run (DMV public dataset `icjc-x44x`)
-- **California** — drop-in file: BAR publishes no bulk download; obtain the licensee list via a free public records request (bar.ca.gov/public-records) and commit it as `data/licensing/ca_registry.csv`
-- **Colorado** — investigated: the state does not license general repair shops, so there is no registry to import; CO shops keep "Data source not connected"
-
-### Remaining adapters
-
-- **Yelp Fusion** — second review source (enables cross-platform consistency)
-- **BBB partner/licensed data** — grade, accreditation, complaints
-- **More state licensing registries** — CA BAR and others, extending the NY import
-
-Until then those rows show "Data source not connected" for live shops, and the composite reweights across what's available.
-
-### Local development
-
-`npm run dev` (plain Vite) has no serverless functions, so it always shows demo data. To exercise `/api/shops` and `/api/enrich` locally, use `vercel dev` with the env vars in a local `.env`.
-
-### Scale note
-
-The map currently uses OpenStreetMap's public tile servers, which are not intended for heavy production traffic — before real scale, switch to self-hosted tiles (Protomaps/PMTiles) or a provider like MapTiler.
-
-## Run it
+## Run it locally
 
 ```bash
 npm install
-npm run dev            # dev server at http://localhost:5173 (demo data only)
+npm run dev            # http://localhost:5173 — demo data only (no serverless functions)
 npm run build          # type-check + production build to dist/
 npm run typecheck:api  # type-check the serverless functions in api/
 ```
 
+`npm run dev` is plain Vite, so `/api/*` doesn't exist and the app shows the bundled demo dataset with a banner. To run the real data path, use `vercel dev` with a local `.env` (git-ignored) containing:
+
+| Variable | Purpose |
+| --- | --- |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service-role key — server-side only, never shipped to the browser |
+| `GOOGLE_PLACES_API_KEY` | Optional. Enables per-shop rating enrichment and the discovery fallback |
+
+The GitHub Actions pipelines need one repo secret, `SUPABASE_DB_URL` (a Postgres connection string). Nothing secret is committed anywhere in this repo.
+
+To seed a fresh database without running the full ingest, [`scripts/load_seed_from_url.sql`](scripts/load_seed_from_url.sql) loads the committed Philadelphia extract ([`public/seed/philly_shops.json`](public/seed/philly_shops.json), 1,976 real shops).
+
+### Serverless gotcha
+
+Vercel runs `api/*.ts` as native Node ES modules. Relative imports **must** carry a `.js` extension (`import { x } from './_supabase.js'`) — extensionless imports pass `tsc` and Vite but fail at runtime with `ERR_MODULE_NOT_FOUND`.
+
+## What's unfinished
+
+Being straightforward about where this stands:
+
+- **Most trust signals have no live source yet.** For real (Overture) shops, only *state licensing* is connected, and only for NY and CA. BBB grade, complaints, certifications, warranty, and rating trend are all `null` for every real shop — they render as "Data source not connected." That means a real shop's score is currently driven by licensing alone, or shows "Not yet rated." The BBB has no public API; that signal needs a partner or licensed data feed.
+- **Google ratings enrichment is built but unexercised in production.** The `enrichment` table is empty; the on-demand path runs only once `GOOGLE_PLACES_API_KEY` is set.
+- **The demo dataset is fabricated.** `src/data/shops.ts` and `src/data/generator.ts` produce illustrative shops with made-up signals for areas without real data. They exist so the map never breaks — they are not real businesses and are always shown behind the "demonstration data" banner.
+- **No shop-owner side.** There are no accounts, no auth, no "claim your listing" flow, and no first-party reviews.
+- **No per-shop URLs.** The app is a single route; shop detail is a side panel, not a shareable or indexable page.
+- **Map tiles** come from OpenStreetMap's public servers, which aren't meant for heavy production traffic. Switch to Protomaps/PMTiles or MapTiler before real scale.
+
 ## Stack
 
-React 19 · TypeScript · Vite · Leaflet / react-leaflet · OpenStreetMap tiles · Vercel serverless functions · Google Places API (New)
+React 19 · TypeScript · Vite · Leaflet / react-leaflet · OpenStreetMap · Vercel serverless functions · Supabase (Postgres + PostGIS) · Overture Maps · Google Places API (New) · DuckDB · GitHub Actions
