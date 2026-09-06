@@ -8,7 +8,7 @@ Live at **[truewrench.vercel.app](https://truewrench.vercel.app)**.
 
 ![TrueWrench: filters and ranked list on the left, score-colored map pins in the center, and a shop's full trust-score breakdown on the right](docs/screenshot.png)
 
-> **About this screenshot:** it shows the bundled **demo dataset** — hand-written Philadelphia sample shops with illustrative BBB, warranty, and certification values, flagged by the banner at the top. Against the live database, most of those breakdown rows currently read "Data source not connected" (see [What's unfinished](#whats-unfinished)). Map tiles are blank because the capture ran in a sandbox without tile access.
+> **About this screenshot:** it shows the bundled **demo dataset** — hand-written Philadelphia sample shops with illustrative BBB, warranty, and certification values, flagged by the banner at the top. Against the live database, most of those breakdown rows currently read "Data source not connected" (see [Status and roadmap](#status-and-roadmap)). Map tiles are blank because the capture ran in a sandbox without tile access.
 
 ## What it does
 
@@ -91,12 +91,18 @@ Row Level Security is enabled on every table with **no policies** — the anon k
 ### Pipelines (GitHub Actions)
 
 - **`ingest-overture.yml`** — monthly. DuckDB reads Overture's places GeoParquet from public S3; [`scripts/ingest_overture.py`](scripts/ingest_overture.py) filters US auto-repair categories, maps them to the app's taxonomy, drops noise (towing, car washes, salvage, mis-geocoded foreign listings), and `psql` upserts the CSV.
-- **`import-licensing.yml`** — quarterly. Matches official state repair-shop registries against `shops` and marks `state_licensed = true`. Matching is conservative (ZIP + fuzzy business name, [`scripts/import_licensing.py`](scripts/import_licensing.py)); only positive matches are written, because a failed fuzzy match is not evidence a shop is unlicensed. Coverage and how to add states: [`data/licensing/README.md`](data/licensing/README.md).
-  - **New York** — auto-downloaded from the DMV open dataset
-  - **California** — auto-downloaded from the DCA licensee lists (~44k Automotive Repair Dealers)
-  - **Florida, Michigan** — drop-in slots awaiting public-records files
-  - **Connecticut** — wired, but the state's published dataset is a stub
-  - **Colorado, Texas** — no statewide repair-shop license exists
+- **`import-licensing.yml`** — quarterly. See [The licensing pipeline](#the-licensing-pipeline).
+
+## The licensing pipeline
+
+State licensing is the one trust signal with a genuinely authoritative, free, public source — and the only one currently connected for real shops. The pipeline turns official state registries into `trust_signals.state_licensed = true`:
+
+1. **Fetch** a state's registry. Two states are fully automated: New York from the DMV's Socrata open-data endpoint ([`scripts/fetch_socrata.py`](scripts/fetch_socrata.py), paged — the one-shot export silently truncates) and California from the DCA licensee-lists publication ([`scripts/fetch_dca_ca.py`](scripts/fetch_dca_ca.py), ~44k Automotive Repair Dealers, refreshed monthly). Other states are drop-in CSVs in [`data/licensing/`](data/licensing/).
+2. **Export** that state's shops from Postgres (`select id, name, address from shops where address like '%, NY, %'`).
+3. **Match** with [`scripts/import_licensing.py`](scripts/import_licensing.py): bucket by ZIP, then compare normalized business names (`difflib.SequenceMatcher`, stop-words stripped). A match needs ≥0.82 similarity on its own, or ≥0.60 plus the same street number. Registry column layouts are auto-detected, and license-status columns (Active / Clear / Delinquent) are honored.
+4. **Upsert** only positive matches. A shop that fails to match stays `null` ("not connected") — **never `false`** — because a failed fuzzy match is not evidence that a real business is unlicensed.
+
+Current coverage: **NY** (auto) · **CA** (auto) · **FL**, **MI** — drop-in slots awaiting public-records responses · **CT** — wired, but the state's published dataset is a ~138-row dealer-only stub · **CO**, **TX** — no statewide repair-shop license exists, so nothing to import. Details and how to add a state: [`data/licensing/README.md`](data/licensing/README.md).
 
 ## Run it locally
 
@@ -123,16 +129,36 @@ To seed a fresh database without running the full ingest, [`scripts/load_seed_fr
 
 Vercel runs `api/*.ts` as native Node ES modules. Relative imports **must** carry a `.js` extension (`import { x } from './_supabase.js'`) — extensionless imports pass `tsc` and Vite but fail at runtime with `ERR_MODULE_NOT_FOUND`.
 
-## What's unfinished
+## Status and roadmap
 
-Being straightforward about where this stands:
+Being straightforward about where this stands.
+
+### What works today
+
+- Radius search over ~334k real US shops from the self-hosted PostGIS database, with Google Places and bundled demo data as fallbacks
+- All filters, sorting, geolocation, and "Search this area"
+- The trust-score engine, reweighting, and per-signal breakdown UI
+- State licensing for New York and California (~17.8k shops marked), refreshed by scheduled pipelines
+- Monthly Overture ingest with noise filtering
+
+### What's unfinished
 
 - **Most trust signals have no live source yet.** For real (Overture) shops, only *state licensing* is connected, and only for NY and CA. BBB grade, complaints, certifications, warranty, and rating trend are all `null` for every real shop — they render as "Data source not connected." That means a real shop's score is currently driven by licensing alone, or shows "Not yet rated." The BBB has no public API; that signal needs a partner or licensed data feed.
 - **Google ratings enrichment is built but unexercised in production.** The `enrichment` table is empty; the on-demand path runs only once `GOOGLE_PLACES_API_KEY` is set.
 - **The demo dataset is fabricated.** `src/data/shops.ts` and `src/data/generator.ts` produce illustrative shops with made-up signals for areas without real data. They exist so the map never breaks — they are not real businesses and are always shown behind the "demonstration data" banner.
 - **No shop-owner side.** There are no accounts, no auth, no "claim your listing" flow, and no first-party reviews.
 - **No per-shop URLs.** The app is a single route; shop detail is a side panel, not a shareable or indexable page.
-- **Map tiles** come from OpenStreetMap's public servers, which aren't meant for heavy production traffic. Switch to Protomaps/PMTiles or MapTiler before real scale.
+- **Map tiles** come from OpenStreetMap's public servers, which aren't meant for heavy production traffic.
+
+### Roadmap (rough order)
+
+1. Set `GOOGLE_PLACES_API_KEY` so real shops show ratings — config only, the code path exists
+2. Per-shop routes (`/shop/:id`) so listings are shareable and indexable
+3. A "claim your listing" form for shop owners — the first piece of an owner side
+4. Florida and Michigan licensing once their public-records responses arrive
+5. A second review source (Yelp Fusion) to activate the cross-platform consistency signal
+6. BBB data via a partner or licensed feed — the largest single gap in the score
+7. Self-hosted map tiles (Protomaps/PMTiles) or MapTiler before real traffic
 
 ## Stack
 
