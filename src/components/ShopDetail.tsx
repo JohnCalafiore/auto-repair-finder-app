@@ -1,16 +1,138 @@
+import { useState, type FormEvent } from 'react'
 import { CATEGORY_LABELS, MAKE_LABELS } from '../types'
 import type { ScoredShop } from '../App'
 import { DAY_NAMES, formatHoursToday } from '../lib/geo'
 import { TrustGauge } from './TrustGauge'
 
+/**
+ * "Is this your shop?" lead capture. Posts to /api/claim and swaps to a
+ * thank-you line on success. Deliberately minimal: no verification, no
+ * account — the row in `shop_claims` is the whole feature.
+ */
+function ClaimListing({ shopId, shopName }: { shopId: string; shopName: string }) {
+  const [open, setOpen] = useState(false)
+  const [done, setDone] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [businessName, setBusinessName] = useState(shopName)
+  const [contactName, setContactName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [message, setMessage] = useState('')
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shopId, businessName, contactName, email, phone, message }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string }
+      if (res.ok && data.ok) {
+        setDone(true)
+      } else {
+        setError(data.error ?? 'Could not send your claim. Please try again.')
+      }
+    } catch {
+      setError('Could not send your claim. Check your connection and try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <section className="detail-section">
+      <h3>Is this your shop?</h3>
+      {done ? (
+        <p className="claim-done">Thanks, we'll be in touch.</p>
+      ) : !open ? (
+        <>
+          <p className="claim-intro">
+            Claim this listing to keep its details current and be first to hear about verified badges.
+          </p>
+          <button type="button" className="directions-btn claim-btn" onClick={() => setOpen(true)}>
+            Claim your listing
+          </button>
+        </>
+      ) : (
+        <form className="claim-form" onSubmit={submit}>
+          <label>
+            Business name
+            <input
+              required
+              maxLength={120}
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+            />
+          </label>
+          <label>
+            Your name
+            <input
+              required
+              maxLength={120}
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              autoComplete="name"
+            />
+          </label>
+          <label>
+            Email
+            <input
+              required
+              type="email"
+              maxLength={254}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+            />
+          </label>
+          <label>
+            Phone (optional)
+            <input
+              type="tel"
+              maxLength={40}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              autoComplete="tel"
+            />
+          </label>
+          <label>
+            Anything we should know? (optional)
+            <textarea maxLength={1000} value={message} onChange={(e) => setMessage(e.target.value)} />
+          </label>
+          {error && (
+            <p className="claim-error" role="alert">
+              {error}
+            </p>
+          )}
+          <div className="claim-actions">
+            <button type="submit" className="directions-btn claim-btn" disabled={submitting}>
+              {submitting ? 'Sending…' : 'Send claim'}
+            </button>
+            <button type="button" className="claim-cancel" onClick={() => setOpen(false)} disabled={submitting}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  )
+}
+
 export function ShopDetail({
   scored,
   enriching = false,
+  canClaim = false,
   onClose,
   onShowTrustInfo,
 }: {
   scored: ScoredShop
   enriching?: boolean
+  /** Real listings only — demo and generated shops are not claimable */
+  canClaim?: boolean
   onClose: () => void
   onShowTrustInfo: () => void
 }) {
@@ -146,6 +268,8 @@ export function ShopDetail({
           Get directions
         </a>
       </section>
+
+      {canClaim && <ClaimListing key={shop.id} shopId={shop.id} shopName={shop.name} />}
     </aside>
   )
 }
