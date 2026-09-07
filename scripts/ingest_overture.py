@@ -16,8 +16,7 @@ parquet and takes on the order of 10–20 minutes.
 import argparse
 import csv
 import re
-
-import duckdb
+import sys
 
 # Overture category → app ServiceCategory (src/types.ts)
 CATEGORY_MAP = {
@@ -69,15 +68,54 @@ NAME_SPECS = [
 
 
 # Noise filters: Overture's auto categories include businesses that aren't
-# repair shops (towing-only, locksmiths, car washes, junk/salvage) and some
-# mis-geocoded foreign listings. Names matching EXCLUDE are dropped unless
-# they also look like a real repair business (KEEP_OVERRIDE).
+# repair shops (towing-only, locksmiths, car washes, junk/salvage, tint and
+# detailing, audio, parts stores, boat/RV/trailer dealers, rentals, shows)
+# and some mis-geocoded foreign listings. Names matching EXCLUDE are dropped
+# unless they also look like a real repair business (KEEP_OVERRIDE). Auto
+# glass, lube and car-care businesses are legitimate service categories and
+# are protected by the override.
+#
+# scripts/cleanup_noise.sql carries the same two patterns in Postgres syntax
+# (\b → \y) for one-time cleanup of rows that predate a filter change; keep
+# them in sync.
 EXCLUDE_NAME = re.compile(
     r'towing|tow truck|locksmith|key maker|car key|auto key|car wash|junk car'
-    r'|cash for|salvage|wrecking|scrap', re.I)
+    r'|cash for|salvage|wrecking|scrap'
+    r'|window tint|tinting|\btints?\b|detail(ing)?|vinyl wrap|wraps?\b'
+    r'|car audio|stereo|upholster|auto parts|parts store|\bboat|\bmarine'
+    r'|rv sales|trailer sales|\brental|showroom|car show|boat show', re.I)
 KEEP_OVERRIDE = re.compile(
-    r'repair|mechanic|auto care|auto service|service center|garage|body|tire'
-    r'|brake|muffler|transmission|lube|collision|diagnostic', re.I)
+    r'repair|mechanic|automotive|auto care|car care|auto service|service'
+    r'|garage|body|tire|brake|muffler|transmission|lube|auto glass|collision'
+    r'|diagnostic', re.I)
+
+
+def is_noise(name: str) -> bool:
+    """True when a business name should be dropped by the noise filter."""
+    return bool(EXCLUDE_NAME.search(name) and not KEEP_OVERRIDE.search(name))
+
+
+def self_test() -> None:
+    """`python scripts/ingest_overture.py --self-test` — no network needed."""
+    dropped = [
+        'Interstate Trailer Sales', 'Denver Boat Show', "Denver's Premier Tint Co.",
+        'Love My Ride Mobile Car Detailing', 'Rocky Mountain Vinyl Wraps',
+        'Sound Waves Car Audio', 'Front Range RV Sales', 'Mile High Auto Parts',
+        'Budget Car Rental', 'Marine Max', 'Joe\'s Towing',
+    ]
+    kept = [
+        'Denver Truck and Trailer Repair', 'Cherry Creek Express Lube & Automotive',
+        'Tiger Auto Glass', 'Tiger Auto Glass & Tint', 'Grease Monkey',
+        'Detailed Auto Repair', 'Precision Tint & Auto Service', 'Mile High Car Care',
+        'Goodyear Auto Service Center', 'Marinello Collision', 'Wrapped Automotive',
+    ]
+    for n in dropped:
+        assert is_noise(n), f'expected DROP: {n!r}'
+    for n in kept:
+        assert not is_noise(n), f'expected KEEP: {n!r}'
+    print(f'noise filter self-test OK ({len(dropped)} dropped, {len(kept)} kept)')
+
+
 LATIN = re.compile(r'[A-Za-z]')
 # CJK/kana/Hangul in a US listing's primary name almost always marks a
 # mis-geocoded foreign business (e.g. a Taiwanese dealership placed in NYC).
@@ -95,6 +133,8 @@ def main() -> None:
     ap.add_argument('--release', default='2026-07-22.0')
     ap.add_argument('--out', default='shops.csv')
     args = ap.parse_args()
+
+    import duckdb  # imported here so --self-test runs without it installed
 
     con = duckdb.connect()
     con.execute('INSTALL httpfs; LOAD httpfs;')
@@ -134,9 +174,7 @@ def main() -> None:
             name = name.strip()[:120]
             # Require a ZIP (mis-geocoded listings usually lack one), a
             # Latin-script name, and a name that isn't excluded-only.
-            if not postcode or not LATIN.search(name) or NON_US_SCRIPT.search(name) or (
-                EXCLUDE_NAME.search(name) and not KEEP_OVERRIDE.search(name)
-            ):
+            if not postcode or not LATIN.search(name) or NON_US_SCRIPT.search(name) or is_noise(name):
                 dropped += 1
                 continue
             seen.add(pid)
@@ -154,4 +192,7 @@ def main() -> None:
 
 
 if __name__ == '__main__':
-    main()
+    if '--self-test' in sys.argv:
+        self_test()
+    else:
+        main()
