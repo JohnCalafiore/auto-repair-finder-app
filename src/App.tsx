@@ -247,6 +247,8 @@ export default function App() {
             <ShopDetail
               scored={selected}
               enriching={enrichingId === selected.shop.id}
+              // Only real listings can be claimed — never demo or generated shops
+              canClaim={dataSource !== 'demo' && !selected.shop.id.startsWith('gen-')}
               onClose={() => setSelectedId(null)}
               onShowTrustInfo={() => setShowTrustInfo(true)}
             />
