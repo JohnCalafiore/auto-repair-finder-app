@@ -16,14 +16,16 @@ export interface ScoredShop {
   openNow: boolean
 }
 
-const PHILLY: LatLng = { lat: 39.9526, lng: -75.1652 }
+// Default search center: downtown Denver. The production database has
+// full Overture coverage of the Denver metro (~3,100 shops within 40 km).
+const DENVER: LatLng = { lat: 39.7392, lng: -104.9903 }
 const SEARCH_RADIUS_MILES = 12
 
 export default function App() {
   const [shops, setShops] = useState<Shop[]>([])
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [searchCenter, setSearchCenter] = useState<LatLng>(PHILLY)
+  const [searchCenter, setSearchCenter] = useState<LatLng>(DENVER)
   const [userLocation, setUserLocation] = useState<LatLng | null>(null)
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState<string | null>(null)
